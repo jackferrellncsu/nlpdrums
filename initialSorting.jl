@@ -5,12 +5,12 @@ using Plots
 using StatsBase
 using PlotlyJS
 
+#=Reading csv file =#
 filename = "mtsamples.csv"
 filepath = joinpath(@__DIR__, filename)
-
-
 arr = CSV.read(filepath, DataFrame)
 
+#=Removing punctuation =#
 for i in 1:size(arr)[1]
     if ismissing(arr[i,5]) == false
         #println(i)
@@ -22,10 +22,13 @@ for i in 1:size(arr)[1]
     end
 end
 
+#=Extracting columns with valuable info, including medical field
+and actual transcriptions =#
 field = arr[:, 3]
 trans = arr[:, 5]
 name = arr[:,4]
 
+#=Removing rows with missing transcripts=#
 for i in reverse(1:4999)
     if ismissing(trans[i]) == true
         global field = field[1:end.!=i]
@@ -33,6 +36,7 @@ for i in reverse(1:4999)
     end
 end
 
+#=Creating frequency chart for medical fields =#
 uniName = unique(field)
 uniFeq = zeros(length(uniName))
 
@@ -45,8 +49,10 @@ for i in 1:length(field)
     end
 end
 
+
 bar(uniName,uniFeq,yticks = :all,orientation = :h)
 
+#=Creating frequency chart for each word =#
 words = " "
 
 for i in 1:length(trans)
@@ -56,16 +62,6 @@ end
 uniWords = unique(split(words," "))
 uniSpecWords = []
 
-#=
-commonWords = CSV.read("/Users/mlovig/Downloads/4000-most-common-english-words-csv.csv", DataFrame)
-
-for i in uniWords
-    if string(i) ∉ commonWords[:,1]
-        push!(uniSpecWords, i)
-    end
-end
-
-=#
 
 plotlyjs()
 
@@ -73,10 +69,7 @@ a = countmap(split(words," "))
 b = [a[k] for k in sort(collect(keys(a)))]
 bar(reverse(sort(b[500:5000])))
 
+#Finding out transcript bodies aren't unique.
 count(x -> (x < 1000 && x > 5), b)
 
 length(unique(name))
-
-struct name
-    fields
-end # struct
