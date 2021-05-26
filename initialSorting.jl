@@ -3,7 +3,7 @@ using CSV
 using DataFrames
 using Plots
 using StatsBase
-
+using PlotlyJS
 
 filename = "mtsamples.csv"
 filepath = joinpath(@__DIR__, filename)
@@ -24,6 +24,7 @@ end
 
 field = arr[:, 3]
 trans = arr[:, 5]
+name = arr[:,4]
 
 for i in reverse(1:4999)
     if ismissing(trans[i]) == true
@@ -66,6 +67,16 @@ end
 
 =#
 
+plotlyjs()
+
 a = countmap(split(words," "))
 b = [a[k] for k in sort(collect(keys(a)))]
-bar(reverse(sort(b[1500:2000])))
+bar(reverse(sort(b[500:5000])))
+
+count(x -> (x < 1000 && x > 5), b)
+
+length(unique(name))
+
+struct name
+    fields
+end # struct

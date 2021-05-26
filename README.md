@@ -4,3 +4,4 @@ CSV
 DataFrames
 Plots
 StatsBases
+PlotlyJS
