@@ -7,7 +7,7 @@ using StatsBase
 
 filename = "mtsamples.csv"
 filepath = joinpath(@__DIR__, filename)
-println(filepath)
+
 
 arr = CSV.read(filepath, DataFrame)
 
@@ -67,5 +67,5 @@ end
 =#
 
 a = countmap(split(words," "))
-b = [a[k] for k in sort(collect(keys(a)))
+b = [a[k] for k in sort(collect(keys(a)))]
 bar(reverse(sort(b[1500:2000])))
