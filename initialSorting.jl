@@ -67,5 +67,25 @@ end
 =#
 
 a = countmap(split(words," "))
-b = [a[k] for k in sort(collect(keys(a)))
+b = [a[k] for k in sort(collect(keys(a)))]
 bar(reverse(sort(b[1500:2000])))
+
+function propOccur(x)
+    count = 0
+    for i in trans
+        if x in split(i)
+            count+=1
+        end
+    end
+    return count
+end
+
+function propOccur(x,y)
+    count = 0
+    for i in trans
+        if x in split(i) && y in split(i)
+            count+=1
+        end
+    end
+    return count
+end
