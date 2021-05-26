@@ -1,7 +1,6 @@
 
 using CSV
 using DataFrames
-# arr = CSV.read("/Users/mlovig/Downloads/mtsamples.csv", DataFrame)
 
 filename = "mtsamples.csv"
 filepath = joinpath(@__DIR__, filename)
