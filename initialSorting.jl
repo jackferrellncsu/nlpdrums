@@ -40,7 +40,7 @@ for i in reverse(1:4999)
     end
 end
 
-#Removing Unwanted Labels
+#Removing Unwanted Fields]
 remove = [" IME-QME-Work Comp etc.", " Letters", " Office Notes", " SOAP / Chart / Progress Notes", " Surgery"," Pain Management", " Discharge Summaries", " Radiology", " Neurosurgery", " Consult - History and Phy.", " Consult - History and Phy.", " Emergency Room Reports", " Discharge Summary"]
 for i in reverse(1:length(field))
     if field[i] in remove
