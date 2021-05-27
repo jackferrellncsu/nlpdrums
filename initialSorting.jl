@@ -96,6 +96,8 @@ for i in 1:length(field)
     end
 end
 
+summarystats(b)
+
 wc = wordcloud(
         processtext(cardFullTxt, stopwords = WordCloud.stopwords_en),
         mask = loadmask(pkgdir(WordCloud)*"/res/alice_mask.png", color = "#faeef8"),
