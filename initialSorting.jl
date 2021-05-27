@@ -4,6 +4,8 @@ using DataFrames
 using Plots
 using StatsBase
 using PlotlyJS
+using WorldCloud
+
 
 #=Reading csv file =#
 filename = "mtsamples.csv"
@@ -15,7 +17,9 @@ for i in 1:size(arr)[1]
     if ismissing(arr[i,5]) == false
         #println(i)
         arr[i,5] = replace(arr[i,5], ".," => " ")
-        arr[i,5] = replace(arr[i,5], [',',';','.',')','('] => "")
+        arr[i,5] = replace(arr[i,5], [',',';','.',')','(', '!', '+', '{', '}',
+                                      '[', ']', '-', '+', '_', '~', ''', '"', '*',
+                                      '?', '<', '>', '%', '$'] => "")
         arr[i,5] = replace(arr[i,5], r":" => ": ")
         arr[i,5] = replace(arr[i,5], r"\s\s+"=> " ")
         arr[i,5] = lowercase(arr[i,5])
@@ -73,3 +77,7 @@ bar(reverse(sort(b[500:5000])))
 count(x -> (x < 1000 && x > 5), b)
 
 length(unique(name))
+
+
+runexample(:alice)
+showexample(:alice)
