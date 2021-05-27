@@ -96,6 +96,13 @@ for i in 1:length(field)
     end
 end
 
+orthFullTxt = ""
+for i in 1:length(field)
+    if field[i] == " Orthopedic"
+        orthFullTxt = orthFullTxt * " " * trans[i]
+    end
+end
+
 summarystats(b)
 
 wc = wordcloud(
@@ -106,6 +113,9 @@ wc = wordcloud(
         density = 0.55) |> generate!
 paint(wc, "alice.png", ratio = 0.5, background = outline(wc.mask, color = "purple", linewidth = 1))
 
+wc2file = "Plots/gathering_cardio.svg"
+wc2filepath = joinpath(@__DIR__, wc2file)
+
 wc2 = wordcloud(
         processtext(cardFullTxt, stopwords = WordCloud.stopwords_en),
         angles = 0,
@@ -113,4 +123,16 @@ wc2 = wordcloud(
         run = initimages!)
 placement!(wc2, style=:gathering, level = 5)
 generate!(wc2, patient=-1)
-paint(wc2, "gathering.svg")
+paint(wc2, wc2filepath)
+
+wc3file = "Plots/gathering_orthopedic.svg"
+wc3filepath = joinpath(@__DIR__, wc3file)
+
+wc3 = wordcloud(
+        processtext(cardFullTxt, stopwords = WordCloud.stopwords_en),
+        angles = 0,
+        density = 0.6,
+        run = initimages!)
+placement!(wc3, style=:gathering, level = 5)
+generate!(wc3, patient=-1)
+paint(wc3, wc3filepath)
