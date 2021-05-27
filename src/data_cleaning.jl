@@ -1,12 +1,10 @@
 using CSV
 using DataFrames
-using Plots
-using StatsBase
-using PlotlyJS
 using WordCloud
+using JLD
 
 #=Reading csv file =#
-filename = "mtsamples.csv"
+filename = "/mtsamples.csv"
 filepath = joinpath(@__DIR__, filename)
 arr = CSV.read(filepath, DataFrame)
 
@@ -39,3 +37,4 @@ REMOVE = [" IME-QME-Work Comp etc.", " Letters", " Office Notes", " SOAP / Chart
 data = filter(x-> !(x[1] in REMOVE), data)
 
 #=Saving cleaned data =#
+CSV.write("src/cleanedData.csv", data)
