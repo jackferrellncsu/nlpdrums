@@ -4,7 +4,7 @@ using DataFrames
 using Plots
 using StatsBase
 using PlotlyJS
-using WorldCloud
+using WordCloud
 
 
 #=Reading csv file =#
@@ -81,3 +81,5 @@ length(unique(name))
 
 runexample(:alice)
 showexample(:alice)
+
+summarystats(b)
