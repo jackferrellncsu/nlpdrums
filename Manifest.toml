@@ -149,6 +149,12 @@ git-tree-sha1 = "dfb3b7e89e395be1e25c2ad6d7690dc29cc53b1d"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.6.0"
 
+[[DataDeps]]
+deps = ["BinaryProvider", "HTTP", "Libdl", "Reexport", "SHA", "p7zip_jll"]
+git-tree-sha1 = "4f0e41ff461d42cfc62ff0de4f1cd44c6e6b3771"
+uuid = "124859b0-ceae-595e-8997-d05f6a7a8dfe"
+version = "0.7.7"
+
 [[DataFrames]]
 deps = ["Compat", "DataAPI", "Future", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrettyTables", "Printf", "REPL", "Reexport", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
 git-tree-sha1 = "66ee4fe515a9294a8836ef18eea7239c6ac3db5e"
@@ -308,6 +314,12 @@ git-tree-sha1 = "fd83fa0bde42e01952757f01149dd968c06c4dba"
 uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
 version = "1.12.0+1"
 
+[[HTML_Entities]]
+deps = ["StrTables"]
+git-tree-sha1 = "c4144ed3bc5f67f595622ad03c0e39fa6c70ccc7"
+uuid = "7693890a-d069-55fe-a829-b4a6d304f0ee"
+version = "1.0.1"
+
 [[HTTP]]
 deps = ["Base64", "Dates", "IniFile", "MbedTLS", "NetworkOptions", "Sockets", "URIs"]
 git-tree-sha1 = "1fd26bc48f96adcdd8823f7fc300053faf3d7ba1"
@@ -440,6 +452,12 @@ version = "2.10.1+0"
 git-tree-sha1 = "c7f1c695e06c01b95a67f0cd1d34994f3e7db104"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.2.1"
+
+[[Languages]]
+deps = ["InteractiveUtils", "JSON"]
+git-tree-sha1 = "b1a564061268ccc3f3397ac0982983a657d4dcb8"
+uuid = "8ef0a80b-9436-5d2c-a485-80b904378c43"
+version = "0.4.3"
 
 [[Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
@@ -749,6 +767,12 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 deps = ["Printf"]
 uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 
+[[ProgressMeter]]
+deps = ["Distributed", "Printf"]
+git-tree-sha1 = "1be8800271c86f572d334fef6e3b8364eaece7d9"
+uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
+version = "1.6.2"
+
 [[QuartzImageIO]]
 deps = ["FileIO", "ImageCore", "Libdl"]
 git-tree-sha1 = "16de3b880ffdfbc8fc6707383c00a2e076bb0221"
@@ -830,6 +854,18 @@ git-tree-sha1 = "91eddf657aca81df9ae6ceb20b959ae5653ad1de"
 uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
 version = "1.0.3"
 
+[[Snowball]]
+deps = ["Languages", "Snowball_jll", "WordTokenizers"]
+git-tree-sha1 = "d38c1ff8a2fca7b1c65a51457dabebef28052399"
+uuid = "fb8f903a-0164-4e73-9ffe-431110250c3b"
+version = "0.1.0"
+
+[[Snowball_jll]]
+deps = ["Libdl", "Pkg"]
+git-tree-sha1 = "35031519df40fbf0d4a6d2faae4f00e117b0ad11"
+uuid = "88f46535-a3c0-54f4-998e-4320a1339f51"
+version = "2.0.0+0"
+
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
 
@@ -876,6 +912,12 @@ git-tree-sha1 = "2f6792d523d7448bbe2fec99eca9218f06cc746d"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.33.8"
 
+[[StrTables]]
+deps = ["Dates"]
+git-tree-sha1 = "5998faae8c6308acc25c25896562a1e66a3bb038"
+uuid = "9700d1a9-a7c8-5760-9816-a99fda30bb8f"
+version = "1.0.1"
+
 [[StructArrays]]
 deps = ["Adapt", "DataAPI", "Tables"]
 git-tree-sha1 = "44b3afd37b17422a62aea25f04c1f7e09ce6b07f"
@@ -917,6 +959,12 @@ version = "0.1.1"
 [[Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[TextAnalysis]]
+deps = ["DataStructures", "DelimitedFiles", "JSON", "Languages", "LinearAlgebra", "Printf", "ProgressMeter", "Random", "Serialization", "Snowball", "SparseArrays", "Statistics", "StatsBase", "Tables", "WordTokenizers"]
+git-tree-sha1 = "bc85e54209c30e69e1925460ec0257a916683f59"
+uuid = "a2db99b7-8b79-58f8-94bf-bbc811eef33d"
+version = "0.7.3"
 
 [[URIParser]]
 deps = ["Unicode"]
@@ -965,6 +1013,12 @@ deps = ["ColorSchemes", "Colors", "ImageMagick", "ImageTransformations", "Luxor"
 git-tree-sha1 = "a438ce077894521c5c90e7dfbe7fbc973e299955"
 uuid = "6385f0a0-cb03-45b6-9089-4e0acc74b26b"
 version = "0.6.9"
+
+[[WordTokenizers]]
+deps = ["DataDeps", "HTML_Entities", "StrTables", "Unicode"]
+git-tree-sha1 = "01dd4068c638da2431269f49a5964bf42ff6c9d2"
+uuid = "796a5d58-b03d-544a-977e-18100b691f6e"
+version = "0.5.6"
 
 [[XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]

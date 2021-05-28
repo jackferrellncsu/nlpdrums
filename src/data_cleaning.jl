@@ -4,7 +4,7 @@ using WordCloud
 using JLD
 
 #=Reading csv file =#
-filename = "/mtsamples.csv"
+filename = "mtsamples.csv"
 filepath = joinpath(@__DIR__, filename)
 arr = CSV.read(filepath, DataFrame)
 
