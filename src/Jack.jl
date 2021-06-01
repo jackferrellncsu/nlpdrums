@@ -1,20 +1,20 @@
 using TextAnalysis
 using InvertedIndices
 using StatsBase
+include("data_cleaning.jl")
 
-#Create corpus with cleaned string documents
-crps = Corpus(docCollection)
-update_lexicon!(crps)
+data = importClean()
+
 
 #Create DT Matrix
 docTerm = DocumentTermMatrix(crps)
 m = dtm(docTerm)
 
-createDTM(data, " Bariatrics")
+a = CreateDTM(data, " Bariatrics")
 
 #Function takes in dataframe and field of interest
 #Returns document term matrix
-function createDTM(data, field)
+function CreateDTM(data, field)
     docCollection = []
     balancingSamps = []
 
@@ -35,8 +35,38 @@ function createDTM(data, field)
     #Second part of function takes sample of transcripts outside field of interest
     #of equal size as the first and adds them to the document collection
     rs = sample(balancingSamps, length(docCollection), replace = false)
+
+    for j in rs
+        #Strip unwanted characters with custom func
+        transcriptDoc = StripUnwanted(j)
+
+        #Append to document collection
+        push!(docCollection, transcriptDoc)
+    end
+
+    #Create corpus with cleaned string documents
+    crps = Corpus(docCollection)
+    update_lexicon!(crps)
+
+    DtmHelper(crps, field)
+
+
 end
 
+function DtmHelper(crps, field)
+    matrix = []
+    for i in crps
+        a = dtv(i, lexicon(crps))
+        if author(i) == field
+            push!(a, 1)
+        else
+            push!(a, 0)
+        push!(matrix, a)
+    end
+    end
+
+    return matrix
+end
 #Takes in row of cleaned df and returns a cleaned StringDocument
 function StripUnwanted(row)
     sd = StringDocument(row[3])
