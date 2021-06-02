@@ -1,16 +1,8 @@
-using TextAnalysis
+import TextAnalysis
 using InvertedIndices
 using StatsBase
 using RecursiveArrayTools
 include("data_cleaning.jl")
-
-data = importClean()
-
-
-docTermMat = CreateDTM(data, " Bariatrics")
-
-
-
 
 #Function takes in dataframe and field of interest
 #Returns document term matrix
@@ -79,9 +71,10 @@ function DtmHelper(crps, field, lex)
 
     return matrix
 end
+
 #Takes in row of cleaned df and returns a cleaned StringDocument
 function StripUnwanted(row)
-    sd = StringDocument(row[3])
+    sd = TextAnalysis.StringDocument(row[3])
 
     #Set all to lowercase
     remove_case!(sd)
@@ -105,7 +98,7 @@ function StripUnwanted(row)
     #stem!(sd)
 
     #Set doc title to be the name of sample
-    title!(sd, row[2])
+    TextAnalysis.title!(sd, row[2])
 
     #Set doc author to be field its from
     author!(sd, row[1])
@@ -114,6 +107,6 @@ function StripUnwanted(row)
 end
 
 function Vec2Mat(v)
-    VA = VectorOfArray(a)
+    VA = VectorOfArray(v)
     return(convert(Array, VA))
 end
