@@ -1,14 +1,21 @@
+Pkg.add("TextAnalysis")
+Pkg.add("InvertedIndices")
+Pkg.add("StatsBase")
+Pkg.add("RecursiveArrayTools")
+
 using TextAnalysis
 using InvertedIndices
 using StatsBase
 using RecursiveArrayTools
+
+#=
 include("data_cleaning.jl")
 
 data = importClean()
 
 
 docTermMat = CreateDTM(data, " Bariatrics")
-
+=#
 
 
 
@@ -20,8 +27,8 @@ function CreateDTM(data, field)
     allDocs = []
 
     for i in eachrow(data)
-
         #Strip unwanted characters with custom func
+
         transcriptDoc = StripUnwanted(i)
 
         #First for loop collects items in field of interest
@@ -103,9 +110,9 @@ function StripUnwanted(row)
 
     #Could also use stem function to further cut terms
     #stem!(sd)
-
     #Set doc title to be the name of sample
-    title!(sd, row[2])
+
+    TextAnalysis.title!(sd, row[2])
 
     #Set doc author to be field its from
     author!(sd, row[1])
@@ -114,6 +121,6 @@ function StripUnwanted(row)
 end
 
 function Vec2Mat(v)
-    VA = VectorOfArray(a)
+    VA = VectorOfArray(v)
     return(convert(Array, VA))
 end
