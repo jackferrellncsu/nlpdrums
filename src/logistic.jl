@@ -1,5 +1,6 @@
 using TextAnalysis
 include("DTMCreation.jl")
+include("syntheticData.jl")
 
 
 data = importClean()
@@ -10,8 +11,13 @@ dtm = transpose(dtm)
 w = zeros(size(dtm)[2])
 x = dtm[1,1:end - 1]
 
-lr = 0.3
-zeez = StochGradientDescent(dtm, lr)
+lr = 0.
+test1 = StochGradientDescent(dtm, lr)
+
+b, mat = createData(3, 3, 6)
+
+
+test2 = StochGradientDescent(mat, 0.01)
 #Inputs:
 #dtm = document term matrix
 #lr = learning rate
@@ -25,7 +31,7 @@ function StochGradientDescent(dtm, lr)
 
     #error testing
     count = 0
-    while (epsilon > 0.000001) #or when loss starts going up on held out set
+    while (epsilon > 0.0001) #or when loss starts going up on held out set
         shuffle!(dtm)
         for doc in eachrow(dtm)
             #Initialize x
@@ -37,9 +43,9 @@ function StochGradientDescent(dtm, lr)
             =#
             push!(loss, (CalculateLoss(x, w), count))
 
-            if (count >= 1) && (loss[end] > loss[end - 1])
-                lr *= .75
-            end
+            # if (count >= 1) && (loss[end] > loss[end - 1])
+            #     lr *= .75
+            # end
             #calculate gradient
             gradient = CalculateGradient(x, w)
 
@@ -49,14 +55,15 @@ function StochGradientDescent(dtm, lr)
             #check convergence condition
             epsilon = sqrt(sum(gradient.^2))
 
-            if epsilon < 0.000001
-                return w
-            end
-
             if count % 10 == 0
                 println()
                 print(epsilon, loss[end], lr)
             end
+
+            if epsilon < 0.0001
+                return w
+            end
+
 
             count+=1
 

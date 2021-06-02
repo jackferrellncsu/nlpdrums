@@ -2,7 +2,7 @@ using Random
 using StatsBase
 using Distributions
 
-x, y = createData(3,3, 123)
+
 function createData(n, p, seed)
 
     Random.seed!(seed)
