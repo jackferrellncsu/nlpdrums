@@ -1,23 +1,8 @@
-Pkg.add("TextAnalysis")
-Pkg.add("InvertedIndices")
-Pkg.add("StatsBase")
-Pkg.add("RecursiveArrayTools")
-
-using TextAnalysis
+import TextAnalysis
 using InvertedIndices
 using StatsBase
 using RecursiveArrayTools
-
-#=
 include("data_cleaning.jl")
-
-data = importClean()
-
-
-docTermMat = CreateDTM(data, " Bariatrics")
-=#
-
-
 
 #Function takes in dataframe and field of interest
 #Returns document term matrix
@@ -27,8 +12,8 @@ function CreateDTM(data, field)
     allDocs = []
 
     for i in eachrow(data)
-        #Strip unwanted characters with custom func
 
+        #Strip unwanted characters with custom func
         transcriptDoc = StripUnwanted(i)
 
         #First for loop collects items in field of interest
@@ -86,9 +71,10 @@ function DtmHelper(crps, field, lex)
 
     return matrix
 end
+
 #Takes in row of cleaned df and returns a cleaned StringDocument
 function StripUnwanted(row)
-    sd = StringDocument(row[3])
+    sd = TextAnalysis.StringDocument(row[3])
 
     #Set all to lowercase
     remove_case!(sd)
@@ -110,8 +96,8 @@ function StripUnwanted(row)
 
     #Could also use stem function to further cut terms
     #stem!(sd)
-    #Set doc title to be the name of sample
 
+    #Set doc title to be the name of sample
     TextAnalysis.title!(sd, row[2])
 
     #Set doc author to be field its from
