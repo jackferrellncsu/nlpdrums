@@ -1,36 +1,40 @@
 using TextAnalysis
 using InvertedIndices
 using StatsBase
+using RecursiveArrayTools
 include("data_cleaning.jl")
 
 data = importClean()
 
 
-#Create DT Matrix
-docTerm = DocumentTermMatrix(crps)
-m = dtm(docTerm)
+docTermMat = CreateDTM(data, " Bariatrics")
 
-a = CreateDTM(data, " Bariatrics")
+
+
 
 #Function takes in dataframe and field of interest
 #Returns document term matrix
 function CreateDTM(data, field)
     docCollection = []
     balancingSamps = []
+    allDocs = []
 
     for i in eachrow(data)
 
+        #Strip unwanted characters with custom func
+        transcriptDoc = StripUnwanted(i)
+
         #First for loop collects items in field of interest
         if i[1] == field
-            #Strip unwanted characters with custom func
-            transcriptDoc = StripUnwanted(i)
-
             #Append to document collection
             push!(docCollection, transcriptDoc)
+            push!(allDocs, transcriptDoc)
         else
             #= Collects indeces not included in field of interest=#
+
             push!(balancingSamps, i)
         end
+        push!(allDocs, transcriptDoc)
     end
     #Second part of function takes sample of transcripts outside field of interest
     #of equal size as the first and adds them to the document collection
@@ -46,24 +50,32 @@ function CreateDTM(data, field)
 
     #Create corpus with cleaned string documents
     crps = Corpus(docCollection)
-    update_lexicon!(crps)
+    totalcrps = Corpus(allDocs)
+    update_lexicon!(totalcrps)
+    lex = lexicon(totalcrps)
 
-    DtmHelper(crps, field)
-
+    m = DtmHelper(crps, field, lex)
+    m = Vec2Mat(m)
 
 end
 
-function DtmHelper(crps, field)
+#Creates raw dtm and adds label as 0 or 1 at end of each row
+function DtmHelper(crps, field, lex)
     matrix = []
+    t = [1]
+    f = [0]
     for i in crps
-        a = dtv(i, lexicon(crps))
+        a = dtv(i, lex)
+        a = vec(a)
         if author(i) == field
             push!(a, 1)
         else
             push!(a, 0)
+        end
+
         push!(matrix, a)
     end
-    end
+
 
     return matrix
 end
@@ -99,4 +111,9 @@ function StripUnwanted(row)
     author!(sd, row[1])
 
     return sd
+end
+
+function Vec2Mat(v)
+    VA = VectorOfArray(a)
+    return(convert(Array, VA))
 end
