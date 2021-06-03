@@ -1,4 +1,5 @@
 using TextAnalysis
+using Plots
 include("DTMCreation.jl")
 include("syntheticData.jl")
 
@@ -71,6 +72,7 @@ function StochGradientDescent(dtm, lr, ϵ)
 
         #Check convergence conditions
         if epsilon < ϵ
+            println("Step: " * string(count) * ", Loss: " * string(losses[end]) * ", ϵ: " * string(epsilon) * ", η: "*string(lr))
             return w, losses, steps
         end
 
@@ -125,7 +127,7 @@ rolledlosses = []
 for i in 50:(length(losses)-50)
     push!(rolledlosses, sum(losses[(i-49):(i+50)])/100)
 end
-plot(steps,losses, label = "Stochiastic Loss")
-plot!(steps[1:length(rolledlosses)], rolledlosses, label = "Rolling Average over 50")
+Plots.plot(steps,losses, label = "Stochiastic Loss")
+Plots.plot!(steps[1:length(rolledlosses)], rolledlosses, label = "Rolling Average over 50")
 xlabel!("Steps")
 ylabel!("Loss")

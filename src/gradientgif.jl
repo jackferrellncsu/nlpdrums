@@ -1,12 +1,12 @@
 using Plots
 # define the function
 function f(x)
-    return x^4 - 2x^2 - x
+    return x^4-.6*x^3-2*x^2
 end
 
 # define the gradient
 function gradient(x)
-    return 4x^3 - 4x - 1
+    return 4*x^3 - 1.8*x^2-4*x
 end
 
 function approxGradient(x,h)
@@ -31,27 +31,24 @@ steps = []
 loss = []
 
 startx = -1.5
-srate = .0095
+srate = .01
 lamb = 1
-gamma = .9 # DONT CHANGE
+gamma = .9
 v = 0
 m = 0
-b1 = .9 # DONT CHANGE
-b2 = .999 # DONT CHANGE
+b1 = .9
+b2 = .999
 e = 10^-8
 
 anim = @animate for i ∈ 1:100
     println(i)
     plotGif(xaxis,yaxis,startx)
-
-
 #Some Gradient Optimixations
     #= Leon Bottou Formula
     rate = srate*(1+srate*lamb*i)^(-1)
     global startx = startx - rate*gradient(startx)=#
 
-
-    #= #Momentum Descent
+    #= Momentum Descent
     global v = gamma*v+srate*gradient(startx)
     global startx = startx - v =#
 
@@ -66,17 +63,15 @@ anim = @animate for i ∈ 1:100
     vhat = v/ (1-b2^i)
     global startx = startx - srate*mhat/(sqrt(vhat)+e)=#
 
-    #=NADAM WIP
+
+    #=Trying NADAM
     global m = b1*m + (1-b1)*gradient(startx)
     mhat = m/(1-b1^i)
     global v = gamma*v+srate*gradient(startx-v)
-    vhat = v/ (1-b2^i) #Not sure about this line
-    global startx = startx - srate*(b1*mhat+(gradient(startx)*(1-b1))/(1-b1^i))/(sqrt(vhat)+e)
-    =#
+    global startx = startx - v =#
 
     global v = gamma*v+srate*gradient(startx-v)
     global startx = startx - v
-
 
     push!(loss,f(startx))
     push!(steps,i)
@@ -84,3 +79,5 @@ anim = @animate for i ∈ 1:100
 end
 
 gif(anim, "anim_fps15.gif", fps = 100)
+
+#do plot(steps,loss) to get trace plot
