@@ -9,11 +9,15 @@ function createData(n, p, seed)
 
     randMatrix = rand(Normal(0, 1), n, p)
 
-    beta = rand([-4:4;], n, 1)
-
+    beta = rand([-8:8;], p, 1)
+    #beta = ones(p,1)
     raw = randMatrix * beta
 
-    py = Sigmoid.(raw)
+    py = []
+
+    for i in 1:length(raw)
+        push!(py,Sigmoid(raw[i]))
+    end
 
     y = py .> .5
     final = hcat(randMatrix, y)
