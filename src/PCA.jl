@@ -1,4 +1,5 @@
 #X, Your Matrix, RemoveDims, # of removed dimensions
+using LinearAlgebra
 function PCA(X,removeDims)
 
     U, Sig, Vt = svd(X).U, svd(X).S, svd(X).Vt
@@ -9,5 +10,3 @@ function PCA(X,removeDims)
 
         return U * diagm(Sig) * Vt
     end
-
-end
