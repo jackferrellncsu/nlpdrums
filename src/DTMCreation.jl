@@ -25,12 +25,12 @@ end
 
 #Function takes in dataframe and field of interest
 #Returns document term matrix
-function CreateDTM(data, field)
+function CreateDTM(data, field, cutoff)
     docCollection = []
     balancingSamps = []
     allDocs = []
 
-    removeWords = getRemoveList(data, 2)
+    removeWords = getRemoveList(data, cutoff)
 
     for i in eachrow(data)
 
