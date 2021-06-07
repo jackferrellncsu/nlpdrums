@@ -1,4 +1,4 @@
-import TextAnalysis
+using TextAnalysis
 using InvertedIndices
 using StatsBase
 using RecursiveArrayTools
@@ -77,22 +77,22 @@ function StripUnwanted(row)
     sd = TextAnalysis.StringDocument(row[3])
 
     #Set all to lowercase
-    remove_case!(sd)
+    TextAnalysis.remove_case!(sd)
 
     #Strip various unwanted things from token
     #Note: commented out commands to strip numbers and such
     #Commented out spares_terms bc I dont know what it does
-    prepare!(sd, strip_articles)
-    prepare!(sd, strip_indefinite_articles)
-    prepare!(sd, strip_definite_articles)
-    prepare!(sd, strip_prepositions)
-    prepare!(sd, strip_pronouns)
-    prepare!(sd, strip_stopwords)
+    TextAnalysis.prepare!(sd, strip_articles)
+    TextAnalysis.prepare!(sd, strip_indefinite_articles)
+    TextAnalysis.prepare!(sd, strip_definite_articles)
+    TextAnalysis.prepare!(sd, strip_prepositions)
+    TextAnalysis.prepare!(sd, strip_pronouns)
+    TextAnalysis.prepare!(sd, strip_stopwords)
     #prepare!(sd, strip_numbers)
-    prepare!(sd, strip_non_letters)
-    #prepare!(sd, strip_spares_terms)
-    #prepare!(sd, strip_frequent_terms)
-    prepare!(sd, strip_html_tags)
+    TextAnalysis.prepare!(sd, strip_non_letters)
+    TextAnalysis.prepare!(sd, strip_sparse_terms)
+    TextAnalysis.prepare!(sd, strip_frequent_terms)
+    TextAnalysis.prepare!(sd, strip_html_tags)
 
     #Could also use stem function to further cut terms
     #stem!(sd)

@@ -1,53 +1,9 @@
-
 using CSV
 using DataFrames
 using Plots
 using StatsBase
 using PlotlyJS
 using WordCloud
-
-
-#=Reading csv file =#
-filename = "mtsamples.csv"
-filepath = joinpath(@__DIR__, filename)
-arr = CSV.read(filepath, DataFrame)
-
-#=Removing punctuation =#
-for i in 1:size(arr)[1]
-    if ismissing(arr[i,5]) == false
-        #println(i)
-        arr[i,5] = replace(arr[i,5], ".," => " ")
-        arr[i,5] = replace(arr[i,5], [',',';','.',')','(', '!', '+', '{', '}',
-                                      '[', ']', '-', '+', '_', '~', ''', '"', '*',
-                                      '?', '<', '>', '%', '$'] => "")
-        arr[i,5] = replace(arr[i,5], r":" => ": ")
-        arr[i,5] = replace(arr[i,5], r"\s\s+"=> " ")
-        arr[i,5] = lowercase(arr[i,5])
-    end
-end
-
-#=Extracting columns with valuable info, including medical field
-and actual transcriptions =#
-field = arr[:, 3]
-trans = arr[:, 5]
-name = arr[:,4]
-
-#=Removing rows with missing transcripts=#
-for i in reverse(1:4999)
-    if ismissing(trans[i]) == true
-        global field = field[1:end.!=i]
-        global trans = trans[1:end.!=i]
-    end
-end
-
-#Removing Unwanted Fields]
-remove = [" IME-QME-Work Comp etc.", " Letters", " Office Notes", " SOAP / Chart / Progress Notes", " Surgery"," Pain Management", " Discharge Summaries", " Radiology", " Neurosurgery", " Consult - History and Phy.", " Consult - History and Phy.", " Emergency Room Reports", " Discharge Summary"]
-for i in reverse(1:length(field))
-    if field[i] in remove
-        global field = field[1:end.!=i]
-        global trans = trans[1:end.!=i]
-    end
-end
 
 #=Creating frequency chart for medical fields =#
 uniName = unique(field)
