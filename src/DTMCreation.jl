@@ -2,7 +2,7 @@ using TextAnalysis
 using InvertedIndices
 using StatsBase
 using RecursiveArrayTools
-include("data_cleaning.jl")
+
 
 #Function takes in dataframe and field of interest
 #Returns document term matrix

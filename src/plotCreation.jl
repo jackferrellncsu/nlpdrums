@@ -2,7 +2,7 @@ using CSV
 using DataFrames
 using Plots
 using StatsBase
-using PlotlyJS
+
 using WordCloud
 
 #=Creating frequency chart for medical fields =#

@@ -1,6 +1,5 @@
 using CSV
 using DataFrames
-using WordCloud
 using JLD
 
 export cleanData, importClean

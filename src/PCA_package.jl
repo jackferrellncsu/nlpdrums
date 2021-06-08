@@ -18,8 +18,11 @@ class = dtmi[end, :]
 dtmi = dtmi[1:end-1, :]
 floatDtmi = 1.0*dtmi
 
-M = fit(PCA, floatDtmi; maxoutdim = 20)
-reducedMat = transform(M, floatDtmi)
+floatDtmi = coalesce(floatDtmi)
+
+
+M = MultivariateStats.fit(MultivariateStats.PCA, floatDtmi; maxoutdim = 20)
+reducedMat = MultivariateStats.transform(M, floatDtmi)
 
 newRedMat = hcat(reducedMat', (1.0*class))
 
