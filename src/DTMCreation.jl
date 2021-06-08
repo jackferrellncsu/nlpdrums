@@ -47,7 +47,7 @@ function CreateDTM(data, field)
     crps = Corpus(docCollection)
     totalcrps = Corpus(allDocs)
 
-
+#=
 
     removeWords = TextAnalysis.frequent_terms(crps, 0.95)
     append!(removeWords, TextAnalysis.sparse_terms(crps, .05))
@@ -56,11 +56,12 @@ function CreateDTM(data, field)
         ind = min(length(removeWords) , 50)
         temp = removeWords[1 : ind]
         removeWords = removeWords[ind+1:end]
-        print(ind)
+
         TextAnalysis.remove_words!(totalcrps, temp)
     end
-    print("over")
-    println(typeof(totalcrps))
+
+=#
+
     update_lexicon!(totalcrps)
     lex = lexicon(totalcrps)
 
