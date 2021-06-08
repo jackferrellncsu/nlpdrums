@@ -25,22 +25,17 @@ end
 
 #Function takes in dataframe and field of interest
 #Returns document term matrix
-function CreateDTM(data, field, cutoff)
+function CreateDTM(data, field)
     docCollection = []
     balancingSamps = []
     allDocs = []
 
-    removeWords = getRemoveList(data, cutoff)
 
     for i in eachrow(data)
 
         #Strip unwanted characters with custom func
-        temp = i
-        for ii in removeWords
-            temp[3] = replace(temp[3], " " * ii *  " " => " ")
-        end
 
-        transcriptDoc = StripUnwanted(temp)
+        transcriptDoc = StripUnwanted(i)
 
 
         #First for loop collects items in field of interest
@@ -70,6 +65,16 @@ function CreateDTM(data, field, cutoff)
     #Create corpus with cleaned string documents
     crps = Corpus(docCollection)
     totalcrps = Corpus(allDocs)
+
+    removeWords = TextAnalysis.frequent_terms(crps, 0.95)
+    append!(removeWords, TextAnalysis.sparse_terms(crps, .05))
+    while length(removeWords) == 0
+        ind = min(length(removeWords),50)
+        temp = removeWords[end - ind : end]
+        removeWords = removeWords[1:end - ind]
+        TextAnalysis.remove_Words!(totalcrps, temp)
+    end
+
     println(typeof(totalcrps))
     update_lexicon!(totalcrps)
     lex = lexicon(totalcrps)
