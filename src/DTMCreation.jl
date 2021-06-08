@@ -4,25 +4,6 @@ using StatsBase
 using RecursiveArrayTools
 include("data_cleaning.jl")
 
-function getRemoveList(data, cutoff)
-    bigString = ""
-    removeWords = []
-    for i in eachrow(data)
-        bigString = bigString * " " * i[3]
-    end
-
-    cm = countmap(split(bigString, " "))
-    mat = hcat([[key, val] for (key, val) in cm])
-     n = 0
-    for i in mat
-        if i[2] <= cutoff
-            push!(removeWords, i[1])
-            n += 1
-        end
-    end
-    return removeWords
-end
-
 #Function takes in dataframe and field of interest
 #Returns document term matrix
 function CreateDTM(data, field)
@@ -66,15 +47,19 @@ function CreateDTM(data, field)
     crps = Corpus(docCollection)
     totalcrps = Corpus(allDocs)
 
+
+
     removeWords = TextAnalysis.frequent_terms(crps, 0.95)
     append!(removeWords, TextAnalysis.sparse_terms(crps, .05))
-    while length(removeWords) == 0
-        ind = min(length(removeWords),50)
-        temp = removeWords[end - ind : end]
-        removeWords = removeWords[1:end - ind]
-        TextAnalysis.remove_Words!(totalcrps, temp)
-    end
 
+    while length(removeWords) != 0
+        ind = min(length(removeWords) , 50)
+        temp = removeWords[1 : ind]
+        removeWords = removeWords[ind+1:end]
+        print(ind)
+        TextAnalysis.remove_words!(totalcrps, temp)
+    end
+    print("over")
     println(typeof(totalcrps))
     update_lexicon!(totalcrps)
     lex = lexicon(totalcrps)
