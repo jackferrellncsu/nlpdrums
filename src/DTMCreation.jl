@@ -4,6 +4,25 @@ using StatsBase
 using RecursiveArrayTools
 include("data_cleaning.jl")
 
+function getRemoveList(data, cutoff)
+    bigString = ""
+    removeWords = []
+    for i in eachrow(data)
+        bigString = bigString * " " * i[3]
+    end
+
+    cm = countmap(split(bigString, " "))
+    mat = hcat([[key, val] for (key, val) in cm])
+     n = 0
+    for i in mat
+        if i[2] <= cutoff
+            push!(removeWords, i[1])
+            n += 1
+        end
+    end
+    return removeWords
+end
+
 #Function takes in dataframe and field of interest
 #Returns document term matrix
 function CreateDTM(data, field)
@@ -11,10 +30,13 @@ function CreateDTM(data, field)
     balancingSamps = []
     allDocs = []
 
+
     for i in eachrow(data)
 
         #Strip unwanted characters with custom func
+
         transcriptDoc = StripUnwanted(i)
+
 
         #First for loop collects items in field of interest
         if i[1] == field
@@ -43,12 +65,24 @@ function CreateDTM(data, field)
     #Create corpus with cleaned string documents
     crps = Corpus(docCollection)
     totalcrps = Corpus(allDocs)
+
+    removeWords = TextAnalysis.frequent_terms(crps, 0.95)
+    append!(removeWords, TextAnalysis.sparse_terms(crps, .05))
+    while length(removeWords) == 0
+        ind = min(length(removeWords),50)
+        temp = removeWords[end - ind : end]
+        removeWords = removeWords[1:end - ind]
+        TextAnalysis.remove_Words!(totalcrps, temp)
+    end
+
+    println(typeof(totalcrps))
     update_lexicon!(totalcrps)
     lex = lexicon(totalcrps)
 
     m = DtmHelper(crps, field, lex)
     m = Vec2Mat(m)
-
+    println("Done")
+    return m
 end
 
 #Creates raw dtm and adds label as 0 or 1 at end of each row
@@ -67,7 +101,6 @@ function DtmHelper(crps, field, lex)
 
         push!(matrix, a)
     end
-
 
     return matrix
 end
@@ -90,8 +123,6 @@ function StripUnwanted(row)
     TextAnalysis.prepare!(sd, strip_stopwords)
     #prepare!(sd, strip_numbers)
     TextAnalysis.prepare!(sd, strip_non_letters)
-    TextAnalysis.prepare!(sd, strip_sparse_terms)
-    TextAnalysis.prepare!(sd, strip_frequent_terms)
     TextAnalysis.prepare!(sd, strip_html_tags)
 
     #Could also use stem function to further cut terms
@@ -102,7 +133,6 @@ function StripUnwanted(row)
 
     #Set doc author to be field its from
     author!(sd, row[1])
-
     return sd
 end
 
