@@ -19,45 +19,57 @@ df = DataFrame(1.0*dtmi', :auto)
 train, test = TrainTestSplit(df, .9)
 
 errors = []
-for i in 1:100
+for i in 1:1
     println(i)
     U, Sig, Vt = PCA(Matrix(train)[:, 1:end - 1], i)
 
     dftrain = DataFrame(hcat(U,train[:,end]), :auto)
-
+    print(typeof(dftrain))
     logit = glm(term(Symbol(:x, i+1)) ~ sum(term.(Symbol.(names(dftrain[:, Not(Symbol(:x, i+1))])))),
                                                 dftrain, Binomial(), ProbitLink())
+
     push!(errors,testModel(Vt, Sig, logit, test))
 end
 
 plot(1:100,errors)
 
 errors2 = []
-for B in 1:100
-    for bb in 1:1000
-        train, test = TrainTestSplit(df, .9)
+for B in 1:1
+    for bb in 1:10
+        train, test = TrainTestSplit(df2, .9)
 
-        MultivariateStats.fit(MultivariateStats.PCA, Matrix(train)[:, 1:end-1], B)
+        pcaTrainInput = DataFrame(Matrix(train[:, 1:end - 1])')
 
-        model = glm()
+        M = MultivariateStats.fit(MultivariateStats.PCA, Matrix(pcaTrainInput); maxoutdim = 20)
+        pcaX = MultivariateStats.transform(M, Matrix(pcaTrainInput))
+
+        logitTrainInput = DataFrame(hcat(pcaX', train[:, end]))
+
+        form = term(Symbol(:x, 20+1)) ~ sum(term.(Symbol.(names(logitTrainInput[:, Not(Symbol(:x, 20+1))]))))
+        model = glm(form, logitTrainInput, Bernoulli(), LogitLink())
+
     end
 end
-df_2 = DataFrame(1.0*dtmi, :auto)
-train, test = TrainTestSplit(df_2, .9)
+#PCA needs columns to be observations
+#Logit needs columns to be predictors
+df2 = DataFrame(dtmi*1.0)
+df2 = DataFrame(Matrix(df2)')
 
-trainPreds = train[1:end - 1, :]
-trainOutcomes = convert(Array{Any}, train[end, :])
+train, test = TrainTestSplit(df2, .9)
 
-M = MultivariateStats.fit(MultivariateStats.PCA, Matrix(trainPreds); maxoutdim = 100)
-pcaX = MultivariateStats.transform(M, Matrix(trainPreds))
+pcaTrainInput = DataFrame(Matrix(train[:, 1:end - 1])')
 
-pca_trainDf = DataFrame(hcat(pcaX', trainOutcomes))
+M = MultivariateStats.fit(MultivariateStats.PCA, Matrix(pcaTrainInput); maxoutdim = 20)
+pcaX = MultivariateStats.transform(M, Matrix(pcaTrainInput))
 
-model = glm(term(Symbol(:x, 101)) ~ sum(term.(Symbol.(names(pca_trainDf[:, Not(Symbol(:x, 101))])))),
-                                            pca_trainDf, Binomial(), ProbitLink())
+logitTrainInput = DataFrame(hcat(pcaX', train[:, end]))
 
-model = glm(term(Symbol(:x, 101)) ~ sum(term.(Symbol.(names(pca_trainDf, Not(:x101))))),
-                                            pca_trainDf, Binomial(), LogitLink())
+form = term(Symbol(:x, 20+1)) ~ term(0) + sum(term.(Symbol.(names(logitTrainInput[:, Not(Symbol(:x, 20+1))]))))
+model = glm(form, logitTrainInput, Bernoulli(), LogitLink())
+
+beta = coef(model)
+
+beta_hat = beta\M.proj'
 #=
 rocnums = MLBase.roc(test[:,end] .== 1,vec(rets), 50)
 
