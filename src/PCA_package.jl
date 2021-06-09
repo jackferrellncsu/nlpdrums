@@ -16,18 +16,24 @@ using Lathe.preprocess: TrainTestSplit
 data = importClean()
 dtmi = CreateDTM(data, " Cardiovascular / Pulmonary")
 df = DataFrame(1.0*dtmi', :auto)
-train, test = TrainTestSplit(df, .9);
+
 
 errors = []
-for i in 1:100
+params,runs = [100,100]
+Errors = Matrix(undef, params,runs)
+
+for i in 1:runs
+    train, test = TrainTestSplit(df, .9);
     println(i)
-    U, Sig, Vt = PCA(Matrix(train)[:, 1:end - 1], i)
+    Us, Sigs, Vts = PCAVecs(Matrix(train)[:, 1:end - 1], params)
+    for ii in 1:params
+        dftrain = DataFrame(hcat(Us[ii],train[:,end]), :auto)
+        z=term(Symbol(:x, ii+1)) ~ term(0) + sum(term.(Symbol.(names(dftrain[:, Not(Symbol(:x, ii+1))]))))
 
-    dftrain = DataFrame(hcat(U,train[:,end]), :auto)
+        logit = glm(z,dftrain, Bernoulli(), LogitLink())
 
-    logit = glm(term(Symbol(:x, i+1)) ~ sum(term.(Symbol.(names(dftrain[:, Not(Symbol(:x, i+1))])))),
-                                                dftrain, Binomial(), ProbitLink())
-    push!(errors,testModel(Vt, Sig, logit, test))
+        Errors[ii,i] = testModel(Vts[ii], Sigs[ii], logit, test)
+    end
 end
 
 plot(1:100,errors)
