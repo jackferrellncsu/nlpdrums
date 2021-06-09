@@ -1,6 +1,7 @@
 include("DTMCreation.jl")
 include("data_cleaning.jl")
 include("PCA.jl")
+include("reworkParameters.jl")
 using MultivariateStats
 using Lathe
 using DataFrames
@@ -8,54 +9,39 @@ using Plots
 using GLM
 using StatsBase
 using MLBase
-using ROCAnalysis
 using CSV
+using Statistics
+using Lathe.preprocess: TrainTestSplit
 
 data = importClean()
 dtmi = CreateDTM(data, " Cardiovascular / Pulmonary")
-
-class = dtmi[end, :]
-dtmi = dtmi[1:end-1, :]
-floatDtmi = 1.0*dtmi
-
-floatDtmi = coalesce(floatDtmi)
-
-
-M = MultivariateStats.fit(MultivariateStats.PCA, floatDtmi; maxoutdim = 20)
-reducedMat = MultivariateStats.transform(M, floatDtmi)
-
-newRedMat = hcat(reducedMat', (1.0*class))
-
-df = DataFrame(newRedMat, :auto)
-
-using Lathe.preprocess: TrainTestSplit
+df = DataFrame(1.0*dtmi', :auto)
 train, test = TrainTestSplit(df, .9);
 
-# fm = @formula(term(:x101) ~ sum(term.(Symbol.(names(df[:, Not(:x101)])))))
-logit = glm(term(:x21) ~ sum(term.(Symbol.(names(df[:, Not(:x21)])))),
-                                            train, Binomial(), ProbitLink())
+errors = []
+for i in 1:100
+    println(i)
+    U, Sig, Vt = PCA(Matrix(train)[:, 1:end - 1], i)
 
-prediction = GLM.predict(logit,test)
+    dftrain = DataFrame(hcat(U,train[:,end]), :auto)
 
-pred = Vector{Float64}()
-
-for i in prediction
-    push!(pred,i)
+    logit = glm(term(Symbol(:x, i+1)) ~ sum(term.(Symbol.(names(dftrain[:, Not(Symbol(:x, i+1))])))),
+                                                dftrain, Binomial(), ProbitLink())
+    push!(errors,testModel(Vt, Sig, logit, test))
 end
 
-rocnums = MLBase.roc(test[:,end] .== 1,(pred))
+plot(1:100,errors)
+
+#=
+rocnums = MLBase.roc(test[:,end] .== 1,vec(rets), 50)
 
 TP = []
 FP = []
-base = []
-area = 0
 for i in 1:length(rocnums)
     push!(TP,rocnums[i].tp/rocnums[i].p)
     push!(FP,rocnums[i].fp/rocnums[i].n)
-    area += TP[end]*1/length(rocnums)
 end
 
-#sum(prediction .!= test[:,end])/size(test)[1]
-
 plot(FP,TP)
-plot!((-1:101)./100, (-1:101)./100, leg = false)
+plot!((0:100)./100, (0:100)./100, leg = false)
+=#
