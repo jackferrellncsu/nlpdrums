@@ -69,7 +69,9 @@ model = glm(form, logitTrainInput, Bernoulli(), LogitLink())
 
 beta = coef(model)
 
-beta_hat = beta\M.proj'
+betaHat = beta\M.proj'
+
+reconstruct(M, coef(model))
 #=
 rocnums = MLBase.roc(test[:,end] .== 1,vec(rets), 50)
 
