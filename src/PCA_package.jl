@@ -19,7 +19,7 @@ df = DataFrame(1.0*dtmi', :auto)
 
 
 errors = []
-params,runs = [100,100]
+params,runs = [50,200]
 Errors = Matrix(undef, params,runs)
 
 for i in 1:runs
@@ -36,7 +36,13 @@ for i in 1:runs
     end
 end
 
-plot(1:100,errors)
+for i in 1:50
+    push!(errors, mean(Errors[i,:]))
+end
+
+P = plot(1:50,errors, leg = false, title = "Cardiovascular Cross Validation")
+xlabel!("# of Principal Components")
+ylabel!("Validation Error")
 
 #=
 rocnums = MLBase.roc(test[:,end] .== 1,vec(rets), 50)
