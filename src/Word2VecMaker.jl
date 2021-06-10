@@ -11,12 +11,77 @@ using MLBase
 using CSV
 using Statistics
 using Lathe.preprocess: TrainTestSplit
+using LinearAlgebra
 data = importClean()
 data, test = TrainTestSplit(data, .9);
 
 
-M = makeVectors(data,50,10)
+T = makeVectors(data,50,10)
 
+word2vec("text8", "text8-vec.txt", verbose = true, window = 20)
+M = wordvectors("text8-vec.txt", normalize = false)
+
+io = open("text8", "r");
+AD = read(io, String)
+
+M = T[1]
+AD = T[2]
+
+vecnorms = []
+occurs = []
+counter = 0
+cm = countmap(split(AD, " "))
+for i in vocabulary(M)[2:end]
+   counter += 1
+   println(counter)
+   push!(vecnorms, norm(get_vector(M,i)))
+   push!(occurs,cm[i])
+end
+
+
+vecnorms1 = []
+counter = 0
+for i in vocabulary(M)
+   counter += 1
+   println(counter)
+   push!(vecnorms1, sum(abs.(get_vector(M,i))))
+end
+
+vecnormsmax = []
+counter = 0
+for i in vocabulary(M)
+   counter += 1
+   println(counter)
+   push!(vecnormsmax, maximum(get_vector(M,i)))
+end
+
+
+p1 = plot(log10.(occurs),vecnorms, seriestype = :scatter, leg = false)
+xlabel!("Log(Occurances)")
+ylabel!("Norm2(Vector)")
+
+p2 = plot(log.(occurs),vecnorms1, seriestype = :scatter, leg = false)
+xlabel!("Log(Occurances)")
+ylabel!("Norm1(Vector)")
+
+p3 = plot(log.(occurs),vecnormsmax, seriestype = :scatter, leg = false)
+xlabel!("Log(Occurances)")
+ylabel!("NormMax(Vector)")
+
+plot(p1,p2,p3)
+
+veced = copy(vecnorms)
+vocab = copy(vocabulary(M))
+impvecs = []
+impvocab = []
+for i in 1:100
+   ind = argmax(veced)
+   push!(impvecs, veced[ind])
+   push!(impvocab, vocab[ind])
+   veced = vcat(veced[1:ind-1] ,veced[ind+1:end])
+   vocab = vcat(vocab[1:ind-1] ,vocab[ind+1:end])
+end
+#=
 class = data[:,1] .== " Cardiovascular / Pulmonary"
 vecs = Matrix{Float64}(undef,length(class),50)
 for i in 1:length(class)
@@ -47,7 +112,7 @@ preds = GLM.predict(logit,dftest)
 rez = preds.>.5
 
 1- sum(rez.==classtest)/length(classtest)
-
+=#
 function makeVectors(data,vecLength, windowLength)
    allDocs = ""
    Padding = " afbjvaavdakjfbvavafvbasfdvlkajsvb"
@@ -68,7 +133,7 @@ function makeVectors(data,vecLength, windowLength)
 
    model = wordvectors("vectors.txt", normalize = false)
 
-   return model
+   return [model, allDocs]
 
 end
 
