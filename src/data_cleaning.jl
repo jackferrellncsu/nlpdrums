@@ -3,7 +3,7 @@ using DataFrames
 using JLD
 
 export cleanData, importClean
-
+cleanData()
 function cleanData()
     #=Reading csv file =#
     filename = "mtsamples.csv"
@@ -37,6 +37,18 @@ function cleanData()
               " Consult - History and Phy.", " Consult - History and Phy.", " Emergency Room Reports",
               " Discharge Summary"]
     data = filter(x-> !(x[1] in REMOVE), data)
+
+    #removing duplicates=#
+    ids = []
+    deleted = []
+    for i in 1:size(data)[1]
+        if data[i, 2] in ids
+            push!(deleted, i)
+        else
+            push!(ids, data[i, 2])
+        end
+    end
+    delete!(data, deleted)
 
     #=Saving cleaned data =#
     CSV.write("src/cleanedData.csv", data)
