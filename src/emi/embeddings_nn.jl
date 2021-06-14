@@ -10,7 +10,7 @@ using Lathe.preprocess: TrainTestSplit
 using LinearAlgebra
 using Flux
 
-include("data_cleaning.jl")
+include("../data_cleaning.jl")
 
 export createCorpusText, filtration, formulateText
 
@@ -21,16 +21,27 @@ export createCorpusText, filtration, formulateText
 # Creates corpus text file
 function createCorpusText(data,pads)
    allDocs = ""
-   for i in 1:length(data[:,3])
+   pad = ""
+   for i in 1:3000
+      pad = pad * " randomWordNow"
+   end
+   for i in 1:length(data[:, 3])
       println(i)
-      allDocs = allDocs * " " * data[i,3]
+      if i != 1
+         if data[i, 1] != data[i-1, 1] && i != 1
+            print("This is a seperation")
+            allDocs = allDocs * pad
+         else
+            allDocs = allDocs * " " * data[i, 3]
+         end
+      end
    end
    open("corpus.txt","a") do io
       println(io,allDocs)
    end
 end
 
-# Cleans up data a bit more before train/test split
+# Cleans up data a bit more before train/test split, samples data 50/50
 function filtration(df, field)
    indexes = []
    for i in 1:length(df[:,1])
