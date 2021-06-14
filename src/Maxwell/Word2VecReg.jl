@@ -42,50 +42,48 @@ M2 = wordvectors("vectors.txt", normalize = false)
 rm("vectors.txt")
 
 errors = []
-for n in 1:25
-   println(n)
+
 
    #Creating sub data set with training and testing
-   datasub = filtration(datatot, field)
-   data, test = TrainTestSplit(datasub, .9);
+datasub = filtration(datatot, field)
+data, test = TrainTestSplit(datasub, .9);
 
 
-   class = data[:,1] .== field
+class = data[:,1] .== field
 
    #Concatination
-   vecs = zeros(length(class),vecLength1 + vecLength2)
-   for i in 1:length(class)
+vecs = zeros(length(class),vecLength1 + vecLength2)
+for i in 1:length(class)
          vecs[i,:] = vcat(formulateText(M,data[i,3]),formulateText(M2,data[i,3]))
-   end
-
-   df = DataFrame(hcat(vecs,class),:auto)
-
-   #Fitting model
-   ii = vecLength1 + vecLength2
-   z=term(Symbol(:x, ii+1)) ~ sum(term.(Symbol.(names(df[:, Not(Symbol(:x, ii+1))]))))
-   logit = glm(z,df, Bernoulli(), LogitLink())
-
-   classtest = test[:,1] .== field
-   vecstest = Matrix{Float64}(undef,length(classtest),ii)
-   for i in 1:length(classtest)
-         vecstest[i,:] = vcat(formulateText(M,test[i,3]),formulateText(M2,test[i,3]))
-   end
-
-   #Calculating Error Rate
-   artest = hcat(vecstest,classtest)
-
-   dftest = DataFrame(artest,:auto)
-
-   preds = GLM.predict(logit,dftest)
-
-   rez = preds.>.5
-
-   #Adding to error rate
-   push!(errors, 1- sum(rez.==classtest)/length(classtest))
-
 end
 
-trap
+df = DataFrame(hcat(vecs,class),:auto)
+
+   #Fitting model
+ii = vecLength1 + vecLength2
+z=term(Symbol(:x, ii+1)) ~ sum(term.(Symbol.(names(df[:, Not(Symbol(:x, ii+1))]))))
+logit = glm(z,df, Bernoulli(), LogitLink())
+
+classtest = test[:,1] .== field
+vecstest = Matrix{Float64}(undef,length(classtest),ii)
+for i in 1:length(classtest)
+         vecstest[i,:] = vcat(formulateText(M,test[i,3]),formulateText(M2,test[i,3]))
+end
+
+   #Calculating Error Rate
+artest = hcat(vecstest,classtest)
+
+dftest = DataFrame(artest,:auto)
+
+preds = GLM.predict(logit,dftest)
+
+rez = preds.>.5
+
+   #Adding to error rate
+push!(errors, 1- sum(rez.==classtest)/length(classtest))
+
+
+
 
 function formulateText(model, script)
    words = split(script, " ")
