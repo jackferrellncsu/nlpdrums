@@ -3,7 +3,7 @@ using DataFrames
 using JLD
 
 export cleanData, importClean
-cleanData()
+
 function cleanData()
     #=Reading csv file =#
     filename = "mtsamples.csv"
