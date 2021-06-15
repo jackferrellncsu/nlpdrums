@@ -3,7 +3,7 @@ using DataFrames
 using Languages
 using Lathe.preprocess: TrainTestSplit
 
-include("../data_cleaning.jl")
+include("data_cleaning.jl")
 
 export createCorpusText, filtration, formulateText
 
@@ -12,21 +12,27 @@ export createCorpusText, filtration, formulateText
 # ---------------------------------------------------------------
 
 # Creates corpus text file
-function createCorpusText(data,pads)
+# choice = 1; creates corpus with padding inbetween medical fields
+# choice = 0; no padding
+function createCorpusText(data, choice)
    allDocs = ""
-   pad = ""
+   thePad = ""
    for i in 1:3000
-      pad = pad * " randomWordNow"
+      thePad = thePad * " randomWordNow"
    end
    for i in 1:length(data[:, 3])
       println(i)
-      if i != 1
-         if data[i, 1] != data[i-1, 1] && i != 1
-            print("This is a seperation")
-            allDocs = allDocs * pad
-         else
-            allDocs = allDocs * " " * data[i, 3]
+      if choice == 1
+         if i != 1
+            if data[i, 1] != data[i-1, 1]
+               println("This is a seperation")
+               allDocs = allDocs * thePad * " " * data[i, 3]
+            else
+               allDocs = allDocs * " " * data[i, 3]
+            end
          end
+      elseif choice == 0
+         allDocs = allDocs * " " * data[i, 3]
       end
    end
    open("corpus.txt","a") do io
@@ -50,6 +56,7 @@ function filtration(df, field)
 end
 
 # Formulates the text for the creation of the embeddings matrix
+# Turns documents to vectors
 function formulateText(model, script)
    words = split(script, " ")
    vecs = zeros(length(get_vector(model,"the")))
