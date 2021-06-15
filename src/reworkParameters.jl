@@ -11,3 +11,14 @@ function testModel(Vt, Sig, logit, test)
     return err
 
 end
+
+function returnTesting(Vt, Sig, logit, test)
+    beta = Vt'*inv(diagm(Sig))*coef(logit)
+
+    rets = Matrix(test)[:,1:end - 1]*hcat(beta)
+
+    bin = 1 ./ (1 .+ exp.(-rets))
+
+    return vec(bin)
+
+end

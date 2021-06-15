@@ -76,6 +76,8 @@ vecs = zeros(length(class),(vecLength1 + vecLength2)*numassign)
             vecs[i,:] = [[a...]...]
    end
 
+vecs = []
+
 #Repeating the same thing for the testing data
 testclass = test[:,1] .== field
 
@@ -151,6 +153,18 @@ function formulateText(model, script)
       end
    end
    return vecs ./ counter
+end
+
+function formulateTextRNN(model, script)
+   words = split(script, " ")
+   vecs = zeros(length(get_vector(model,"the")))
+   counter = 0
+   for i in words[1:end]
+      if i in vocabulary(model) && i ∉ stopwords(Languages.English())
+         append!(vecs, get_vector(model,i))
+      end
+   end
+   return vecs
 end
 
 function formulateTextCluster(model, script, assign, numassign)
