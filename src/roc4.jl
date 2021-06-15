@@ -6,6 +6,7 @@ using Plots
 include("data_cleaning.jl")
 include("embeddings_nn.jl")
 
+#=================Embeddings creation=================================#
 #Importing data and creating corpus
 data = importClean()
 sort!(data, "medical_specialty")
@@ -51,7 +52,9 @@ train_mat = vecsTrain'
 test_mat = vecsTest'
 
 testingdata = Flux.Data.DataLoader((test_mat, yTest'))
+#==============================================================================#
 
+#============================Jack ROC==========================================#
 using BSON: @load
 
 @load "src/Jack/jackModel.bson" model1
@@ -65,6 +68,8 @@ jackr = roc(convert(BitVector, yTest), jackpreds)
 
 jacktpr = true_positive_rate.(jackr)
 jackfpr = false_positive_rate.(jackr)
+
+#==============================================================================#
 
 #=============Compute your roc data here ====================#
 
