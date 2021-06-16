@@ -12,12 +12,7 @@ include("../PCA.jl")
 # --------------------- Variables To Change ---------------------
 # ---------------------------------------------------------------
 
-# Vector length for embeddings (Max 50), represents initial # of input nodes
-# Window size (the smaller, the more syntactic; the larger, the more topical)
-# Could add more than one set of embeddings, see "Word2VecReg.jl"
-vecLength1 = 50
-window1 = 100
-
+# Don't forget to change neural net layer values
 trainTestSplitPercent = .9
 η = 0.05
 epochs = 1000
@@ -46,13 +41,11 @@ UTest = UsTest[NumPC]
 STest = sigsTest[NumPC]
 VTest = VtsTest[NumPC]
 
-
 # Making the classification column for after splitting
 field = " Cardiovascular / Pulmonary"
 
 class = data[:,end]
 classTest = test[:,end]
-
 
 tmat = Matrix(test)
 
@@ -69,11 +62,11 @@ test_mat = UTest'
 # function; creates dense layer based on parameters.
 # @return nn - both dense layers tied together
 function neural_net()
-    nn = Chain(
+    nnPCA = Chain(
             Dense(27, 15, hardσ),
             Dense(15, 1, x->σ.(x))
             )
-    return nn
+    return nnPCA
 end
 
 # Makes "DataLoader" classes for both testing and training data
@@ -84,12 +77,12 @@ newTrainingData = Flux.Data.DataLoader((train_mat, class'),
 
 # Defining our model, optimization algorithm and loss function
 # @function Descent - gradient descent optimiser with learning rate η
-nn = neural_net()
+nnPCA = neural_net()
 opt = Descent(η)
-loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
+loss(x, y) = sum(Flux.Losses.binarycrossentropy(nnPCA(x), y))
 
-# Actual training
-ps = Flux.params(nn)
+# Actual training of neural net
+ps = Flux.params(nnPCA)
 
 for i in 1:epochs
         Flux.train!(loss, ps, newTrainingData, opt)
@@ -98,7 +91,7 @@ for i in 1:epochs
 # Testing for accuracy
 acc = 0
     for (x,y) in newTestData
-        acc += sum((nn(x) .> .5) .== y)
+        acc += sum((nnPCA(x) .> .5) .== y)
     end
 
 # Printing the error rate from the accuracy function
@@ -109,10 +102,13 @@ print("Error Rate: ")
 print(percentError)
 println("%")
 
+using BSON: @save
+@save "src/emi/nnPCA.bson" nnPCA
+
 # Making an array for ROC curve plotting
 realVec = []
     for (x, y) in newTestData
-        push!(realVec, nn(x))
+        push!(realVec, nnPCA(x))
     end
 j = []
 trueVec = []
@@ -125,11 +121,9 @@ trueVec = Vector{Float64}(trueVec)
 
 # Printing an ROC curve for PCA
 rocnums = MLBase.roc(classTest.==1, trueVec, 50)
-TP = []
-FP = []
-for i in 1:length(rocnums)
-    push!(TP,rocnums[i].tp/rocnums[i].p)
-    push!(FP,rocnums[i].fp/rocnums[i].n)
-end
-plot(FP,TP)
+
+emiTPR = true_positive_rate.(rocnums)
+emiFPR = false_positive_rate.(rocnums)
+
+plot(emiFPR,emiTPR)
 plot!((0:100)./100, (0:100)./100, leg = false)
