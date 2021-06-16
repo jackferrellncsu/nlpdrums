@@ -8,7 +8,7 @@ sort!(datatot, "medical_specialty")
 createCorpusText(datatot,10)
 
 #defining the lengths of the syntanctic or topical embeddings
-vecLength1 = 10
+vecLength1 = 15
    vecLength2 = 5
 
 #Defining the window sizes
@@ -46,7 +46,7 @@ Scripts = []
             push!(Scripts,vcat(formulateTextRNN(M,data[i,3])))
    end
 
-rn = Chain(Flux.RNN(10,5),Dense(5,1,x -> σ.(x)))
+rn = Chain(Flux.LSTM(10,5),Dense(5,1,x -> σ.(x)))
 
 #rn = Flux.RNN(5,1,x -> σ.(x))
 
@@ -71,9 +71,11 @@ end
 
 opt = Flux.ADAM()
 
-epochs = 500
+epochs = 1000
+Keeps = []
 for i in 1:epochs
     println(i, " : ", loss(Scripts,class))
+    push!(Keeps, Flux.params(rn))
     Flux.train!(lossSig , ps , zip(Scripts,class) , opt)
 end
 
