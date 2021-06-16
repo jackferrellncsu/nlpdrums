@@ -134,6 +134,17 @@ logit = glm(z,df, Bernoulli(), LogitLink())
 acclogit = sum((GLM.predict(logit,dftest).>.5) .== testclass) / length(testclass)
 
 
+preds = zeros(0)
+for (x,y) in dtest
+
+   #=
+   print(nn(x) .> .5, " : ")
+   println(y)
+   =#
+
+
+   push!(preds,nn(x)[1])
+end
 
 
 
