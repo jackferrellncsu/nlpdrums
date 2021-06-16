@@ -60,11 +60,9 @@ for i in 1:epochs
     Flux.train!(lozz, para, trainingdata, opt)
 end
 
-#weightsLogit = params(neuralnet)
+using BSON: @save
 
-#using BSON: @save
-#@save "src/carolina/weightslogit.bson" weightsLogit;
-
+@save "src/carolina/logitEmbeddings.bson" neuralnet
 #ROC Curve
 
 preds = zeros(0)

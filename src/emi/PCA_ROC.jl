@@ -3,7 +3,9 @@ using LinearAlgebra
 using Statistics
 using ROCAnalysis
 using MLBase
+using Plots
 
+include("../DTMCreation.jl")
 include("../embeddings_nn.jl")
 include("../data_cleaning.jl")
 include("../PCA.jl")
