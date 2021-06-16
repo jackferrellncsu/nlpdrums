@@ -4,7 +4,7 @@ using Flux
 # vectors have random float values from 1 to 10 and random lengths from 2 to 7
 # testing data is just 2x training data
 function generate_data(num_samples)
-  train_data = [rand(1.0:10.0, rand(2:7)) for i in 1:num_samples]
+  train_data = [rand(Float32,1.0:10.0, rand(2:7)) for i in 1:num_samples]
   train_labels = (v -> sum(v)).(train_data)
 
   test_data = 2 .* train_data
@@ -15,7 +15,7 @@ end
 
 # takes in each value of x one at a time,
 # sums input with sum of all previous inputs, makes "running total"
-simple_rnn = Flux.RNN(1, 1, (x -> x))
+#simple_rnn = Flux.RNN(1, 1, (x -> x))
 
 #-----training and evaluation-----#
 
@@ -29,9 +29,9 @@ train_data, train_labels, test_data, test_labels = generate_data(num_samples)
 simple_rnn = Flux.RNN(1, 1, (x -> x))
 
 function eval_model(x)
-  out = simple_rnn.(x)[end]
+  out = (simple_rnn.(x))[end]
   Flux.reset!(simple_rnn)
-  out
+  return out
 end
 
 loss(x, y) = abs(sum((eval_model(x) .- y)))
