@@ -115,7 +115,7 @@ ps = Flux.params(nn)
 # Testing for accuracy
 acc = 0
     for (x,y) in newTestData
-        acc += sum((nn(x) .> .5) .== y)
+        global acc += sum((nn(x) .> .5) .== y)
     end
 
 realVec = []
