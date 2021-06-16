@@ -1,15 +1,15 @@
 
 
-
+#This needs the train test split done
 dtrain = CreateDTM(train, field)
 dtest = CreateDTM(test,feild)
 DTMTrain = DataFrame(1.0*dtrain', :auto)
 DTMTest = DataFrame(1.0*dtest', :auto)
 
-param = 50 #This has to be as large as our largest wanted PCA
+param = 100 #This has to be as large as our largest wanted PCA
     #This line will take some time
     Us, Sigs, Vts = PCAVecs(Matrix(DTMtrain)[:, 1:end - 1], param)
-    for ii in [5,25,50]
+    for ii in [5,25,100]
         println(ii)
         dftrain = DataFrame(hcat(Us[ii],DTMtrain[:,end]), :auto)
         z=term(Symbol(:x, ii+1)) ~ term(0) + sum(term.(Symbol.(names(dftrain[:, Not(Symbol(:x, ii+1))]))))
