@@ -1,5 +1,6 @@
-include("DTMCreation.jl")
-include("data_cleaning.jl")
+include("../DTMCreation.jl")
+include("../data_cleaning.jl")
+include("../embeddings_nn.jl")
 include("clustering.jl")
 using Word2Vec
 using MultivariateStats
@@ -15,19 +16,20 @@ using Languages
 using Lathe.preprocess: TrainTestSplit
 using LinearAlgebra
 using Flux
+using Clustering
 
 
 datatot = importClean()
 sort!(datatot, "medical_specialty")
 rm("corpus.txt")
-createCorpusText(datatot,10)
+createCorpusText(datatot,1)
 
 #defining the lengths of the syntanctic or topical embeddings
-vecLength1 = 5
+vecLength1 = 20
    vecLength2 = 15
 
 #Defining the window sizes
-window1 = 5
+window1 = 500
    window2 = 30
 
 #Creating the syntactic vector
@@ -47,12 +49,12 @@ word2vec("corpus.txt", "vectors.txt", size = vecLength1, verbose = true,
 #Desired field
 field = " Cardiovascular / Pulmonary"
 
-cdat = zeros(length(vocabulary(M)[2:end]),vecLength1+vecLength2)
+cdat = zeros(length(vocabulary(M)[2:end]),vecLength1)
 for i in 1:length(vocabulary(M)[2:end])
-    cdat[i,:] = vcat(get_vector(M,vocabulary(M)[i+1]),get_vector(M2,vocabulary(M2)[i+1]))
+    cdat[i,:] = #=vcat(=#get_vector(M,vocabulary(M)[i+1])#=,get_vector(M2,vocabulary(M2)[i+1]))=#
 end
 
-numassign = 5
+numassign = 15
 R = kmeans(cdat', numassign, display=:iter)
 
 assign = Dict{String,Any}()
@@ -63,30 +65,43 @@ end
 
 #Creating sub data set with training and testing
 datasub = filtration(datatot, field)
-   data, test = TrainTestSplit(datasub, .9);
+   data, test = TrainTestSplit(datasub, .75);
 
 #The output vector
 class = data[:,1] .== field
 
 #Concatination
-vecs = zeros(length(class),(vecLength1 + vecLength2)*numassign)
+
+vecs = zeros(length(class),(vecLength1))
    for i in 1:length(class)
-            a = vcat(formulateTextCluster(M,data[i,3], assign,numassign),
-            formulateTextCluster(M2,data[i,3], assign,numassign))
-            vecs[i,:] = [[a...]...]
+            vecs[i,:] = formulateText(M,data[i,3])
+
    end
 
-vecs = []
+
+#=
+vecs = zeros(length(class),numassign)
+   for i in 1:length(class)
+            vecs[i,:] = formulateTextClusterSpec(M,data[i,3], assign,numassign)
+   end
+=#
 
 #Repeating the same thing for the testing data
+
 testclass = test[:,1] .== field
 
-   testvecs = zeros(length(testclass),(vecLength1 + vecLength2)*numassign)
+testvecs = zeros(length(testclass),(vecLength1))
    for i in 1:length(testclass)
-      a = vcat(formulateTextCluster(M,test[i,3], assign,numassign),
-      formulateTextCluster(M2,test[i,3], assign,numassign))
-      testvecs[i,:] = [[a...]...]
+            testvecs[i,:] = formulateText(M,test[i,3])
+
    end
+
+#=
+testvecs = zeros(length(testclass),numassign)
+   for i in 1:length(testclass)
+            testvecs[i,:] = formulateTextClusterSpec(M,test[i,3], assign,numassign)
+   end
+=#
 
 #loading both testing a training into a DataLoader
 d = Flux.Data.DataLoader((vecs',class'), batchsize=100, shuffle = true)
@@ -94,32 +109,34 @@ d = Flux.Data.DataLoader((vecs',class'), batchsize=100, shuffle = true)
    dtest = Flux.Data.DataLoader((testvecs',testclass'), shuffle = false)
 
 #Creating the Nueral Net, feed foward 20 -> 50 -> 1
-nn = Chain(Dense(100,50, hardσ),Dense(50,10,hardσ), Dense(10,1,hardσ), x->σ.(x))
+nn = Chain(Dense(20,5, relu),Dense(5,1,sigmoid))
 
-   opt = Descent(.1)
+   opt = ADAM()
 
    ps = Flux.params(nn)
 
    loss(x,y) = sum(Flux.Losses.binarycrossentropy(nn(x),y))
 
 #Training the nueral net
-epoch = 1000
+losses = []
+epoch = 10000
    for i in 1:epoch
-      println(i)
+      e = loss(vecs',class')
+      push!(losses,e)
+      println(i, " : ", e)
       Flux.train!(loss, ps,d , opt)
    end
 
 #Accessing the accuracy
 acc = 0
    for (x,y) in dtest
-
       #=
       print(nn(x) .> .5, " : ")
       println(y)
       =#
 
 
-      acc += sum((nn(x).>.5) .== y)
+      acc += (nn(x)[1]>.5) == y[1]
    end
    println(1- (acc/length(testclass)))
 
@@ -163,7 +180,7 @@ function formulateText(model, script)
          counter += 1
       end
    end
-   return vecs ./ counter
+   return vecs
 end
 
 function formulateTextRNN(model, script)
@@ -190,6 +207,19 @@ function formulateTextCluster(model, script, assign, numassign)
    return vecs
 end
 
+function formulateTextClusterSpec(model, script, assign, numassign)
+   words = split(script, " ")
+   vecs = zeros(numassign)
+   for i in words[1:end]
+      if i in vocabulary(model) && i ∉ stopwords(Languages.English())
+         V = zeros(numassign)
+         V[get(assign, String(i),1)] = 1
+         vecs = vecs .+ convert(Vector{Float32},V)
+          #&& i ∉ stopwords(Languages.English())
+      end
+   end
+   return vecs
+end
 
 function filtration(df, field)
    indexes = []

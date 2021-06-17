@@ -47,6 +47,7 @@ for i in 1:epochs
 end
 
 Flux.reset!(rnn)
-rnn(Float32[1])
-rnn(Float32[5])
-rnn(Float32[7])
+rnn(Float32[-2])
+rnn(Float32[3])
+rnn(Float32[-5])
+ps
