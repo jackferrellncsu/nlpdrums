@@ -4,7 +4,7 @@ numwords = 50
     samples = 10000
 
 #Creating the Master Lookup
-markovNuet = makeMarkov(numwords,10,15)
+markovNuet = makeMarkov(numwords,50,100)
 
 #Creating True Lookup
 markovTrue = copy(markovNuet)
@@ -48,7 +48,7 @@ classifier = ones(samples)
 append!(classifier, zeros(samples))
 
 corpus = ""
-for i in 1:10000
+for i in totalResp
     corpus = corpus * i
 end
 
@@ -66,7 +66,7 @@ word2vec("corpus.txt", "vectors.txt", size = Vlength, verbose = true,
 
 rm("corpus.txt")
 
-cosine_similar_words(M,"17")
+cosine_similar_words(M,"808")
 
 #--------------------------------------------------------------
 
