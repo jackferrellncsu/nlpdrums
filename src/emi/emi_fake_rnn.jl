@@ -1,6 +1,11 @@
 using Flux
 
-function generate_data(num_samples)
+# @function - creates a vector (whole data set) of vectors (each individual sample)
+# of vectors (the individual values inside the samples).
+# @param num_samples - number of data samples you want. More samples, higher accuracy
+# @return - two vectors inside of a vector. [data] represents the data sample(s) and
+# [labels] represents the sum of each data sample
+function generate_rnn_data(num_samples)
     data = []
     labels = []
     for i in 1:num_samples
@@ -17,6 +22,7 @@ function generate_data(num_samples)
     return [data,labels]
 end
 
+# Represents the loss of each individual value
 function lossSig(x,y)
     ypred = rnn.(x)[end][1]
     l = abs(ypred - y)
@@ -24,6 +30,7 @@ function lossSig(x,y)
     return l
 end
 
+# Total loss on function
 function loss(X,Y)
     sum = 0
     for i in 1:length(Y)
@@ -32,7 +39,7 @@ function loss(X,Y)
     return sum
 end
 
-data, labels = generate_data(1000)
+data, labels = generate_rnn_data(2000)
 
 rnn = Flux.RNN(1,1,(x->x))
 
@@ -40,23 +47,11 @@ ps = Flux.params(rnn)
 
 opt = Flux.ADAM()
 
-<<<<<<< Updated upstream
-epochs = 1000
+epochs = 100
 for i in 1:epochs
     println(i, " : ", loss(data,labels))
-=======
-epochs = 100
-err = []
-for i in 1:epochs
-    e = loss(data,labels)
-    push!(err,e)
-    println(i, " : ", e)
->>>>>>> Stashed changes
     Flux.train!(lossSig , ps , zip(data,labels) , opt)
 end
 
 Flux.reset!(rnn)
-rnn(Float32[-2])
-rnn(Float32[3])
-rnn(Float32[-5])
-ps
+print(rnn(Float32[1]) + rnn(Float32[5]) + rnn(Float32[7]))

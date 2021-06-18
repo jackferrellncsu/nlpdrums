@@ -13,21 +13,21 @@ include("../PCA.jl")
 # --------------------- Variables To Change ---------------------
 # ---------------------------------------------------------------
 
-# Vector length for embeddings (Max 50), represents initial # of input nodes
+# Vector length for embeddings, represents initial # of input nodes
 # Window size (the smaller, the more syntactic; the larger, the more topical)
 # Could add more than one set of embeddings, see "Word2VecReg.jl"
-vecLength1 = 15
-window1 = 300
+vecLength1 = 100
+window1 = 50
 
 trainTestSplitPercent = .9
 η = 0.05
-epochs = 1000
+epochs = 2000
 
 # 0 = no pad
 # 1 = pad between field
 # 2 = pad between docs
 paddingChoice = 1
-batchsize_custom = 100
+batchsize_custom = 1000
 # Have to manually change the number of nodes in the nn layers
 # in neural_network function
 
@@ -52,9 +52,20 @@ rm("corpus.txt")
 # ---------------- Start Running Here For New Data Set ----------------
 
 # Filtering new data and splitting train/test
-datasub = filtration(true_data, field)
-data, test = TrainTestSplit(datasub, trainTestSplitPercent)
+# datasub = filtration(true_data, field)
+data, test = TrainTestSplit(true_data, trainTestSplitPercent)
 
+# Multinomial Field Sorting
+fieldClass = []
+uniqueFields = unique(true_data[:, 1])
+for i in 1:length(data[:,1])
+    push!(fieldClass, Flux.onehot(data[i, 1], uniqueFields))
+end
+
+testFieldClass = []
+for i in 1:length(test[:,1])
+    push!(testFieldClass, Flux.onehot(test[i, 1], uniqueFields))
+end
 
 # Making the classification column for after splitting
 class = data[:,1] .== field
@@ -70,6 +81,17 @@ tmat = Matrix(test)
 # vectors lengths (or one vector if using one)
 vecsTrain = zeros(length(class),vecLength1)
 vecsTest = zeros(length(tmat[:, 1]), vecLength1)
+
+field_mat = zeros(length(fieldClass), length(fieldClass[1]))
+newTestMat = zeros(length(testFieldClass), length(testFieldClass[1]))
+
+for (i, r) in enumerate(eachrow(field_mat))
+    r .+= fieldClass[i]
+end
+
+for (i, r) in enumerate(eachrow(newTestMat))
+    r .+= testFieldClass[i]
+end
 
 # Places embeddings in empty matrix
 for i in 1:length(class)
@@ -94,22 +116,23 @@ test_mat = vecsTest'
 # @return nn - both dense layers tied together
 function neural_net()
     nn = Chain(
-        Dense(15, 7, hardσ),
-        Dense(7, 1, x->σ.(x))
+        Dense(100, 75, relu),
+        Dense(75, 55, relu),
+        Dense(55, 29, Flux.sigmoid)
         )
     return nn
 end
 # Makes "DataLoader" classes for both testing and training data
 # Batchsize for training shoulde be < ~size(train). Way less
-newTestData = Flux.Data.DataLoader((test_mat, classTest'))
-newTrainingData = Flux.Data.DataLoader((train_mat, class'),
+newTestData = Flux.Data.DataLoader((test_mat, newTestMat'))
+newTrainingData = Flux.Data.DataLoader((train_mat, field_mat'),
                                     batchsize = batchsize_custom, shuffle = true)
 
 # Defining our model, optimization algorithm and loss function
 # @function Descent - gradient descent optimiser with learning rate η
 nn = neural_net()
-opt = Descent(η)
-loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
+opt = ADAM()
+loss(x, y) = sum(Flux.Losses.logitcrossentropy(nn(x), y))
 
 # Actual training
 totalLoss = []
@@ -125,7 +148,7 @@ ps = Flux.params(nn)
         push!(traceY, totalLoss)
         acc = 0
         for (x,y) in newTestData
-            acc += sum((nn(x) .> .5) .== y)
+            acc += sum((classField(nn(x))) == vec(y'))
         end
         decimalError = 1 - acc/length(classTest)
         percentError = decimalError * 100
@@ -136,7 +159,7 @@ ps = Flux.params(nn)
 # Testing for accuracy (at the end)
 acc = 0
     for (x,y) in newTestData
-        acc += sum((nn(x) .> .5) .== y)
+        acc += sum((classField(nn(x))) == vec(y'))
     end
 
 # Printing the error rate from the accuracy function

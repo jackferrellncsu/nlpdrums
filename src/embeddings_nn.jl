@@ -12,6 +12,7 @@ export createCorpusText, filtration, formulateText
 # ---------------------------------------------------------------
 
 # Creates corpus text file
+# choice = 2; padding after any doc
 # choice = 1; creates corpus with padding inbetween medical fields
 # choice = 0; no padding
 function createCorpusText(data, choice)
@@ -33,6 +34,8 @@ function createCorpusText(data, choice)
          end
       elseif choice == 0
          allDocs = allDocs * " " * data[i, 3]
+      elseif choice == 2
+         allDocs = allDocs * thePad * " " * data[i, 3]
       end
    end
    open("corpus.txt","a") do io
@@ -69,4 +72,10 @@ function formulateText(model, script)
       end
    end
    return vecs ./ counter
+end
+
+function field_class(vec)
+   out = zeros(length(vec))
+   out[argmax(vec)] = 1
+   return out
 end
