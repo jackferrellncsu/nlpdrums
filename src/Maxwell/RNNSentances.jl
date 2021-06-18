@@ -59,7 +59,11 @@ for i in 1:length(data[:,1])
       end
 end
 
+<<<<<<< Updated upstream
 rn = Chain(Flux.LSTM(25,10),Dense(10,1,x->σ.(x)))
+=======
+rn = Flux.RNN(25,1, sigmoid)
+>>>>>>> Stashed changes
 
 #rn = Flux.RNN(5,1,x -> σ.(x))
 

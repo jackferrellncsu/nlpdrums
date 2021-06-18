@@ -40,9 +40,18 @@ ps = Flux.params(rnn)
 
 opt = Flux.ADAM()
 
+<<<<<<< Updated upstream
 epochs = 1000
 for i in 1:epochs
     println(i, " : ", loss(data,labels))
+=======
+epochs = 100
+err = []
+for i in 1:epochs
+    e = loss(data,labels)
+    push!(err,e)
+    println(i, " : ", e)
+>>>>>>> Stashed changes
     Flux.train!(lossSig , ps , zip(data,labels) , opt)
 end
 
