@@ -4,15 +4,14 @@ using Word2Vec
 
 Random.seed!(1234)
 
-#Setting constant parameters for data creation
 struct SynthParams
-    NUMDOCS
-    MIN_DOC_LENGTH
-    MAX_DOC_LENGTH
+    NUMDOCS::Int16
+    MIN_DOC_LENGTH::Int16
+    MAX_DOC_LENGTH::Int16
 
-    P_HOT_DOC
-    P_KEY_PHRASE_1
-    P_KEY_PHRASE_0
+    P_HOT_DOC::Float16
+    P_KEY_PHRASE_1::Float16
+    P_KEY_PHRASE_0::Float16
     DIST1
     DIST2
 end
@@ -21,8 +20,8 @@ words = ['A':'Z';]
 
 words2 = ['A':'E';]
 
-wordsdist1 = CreateWordDistibution(words)
-wordsdist2 = CreateWordDistibution(words)
+wordsdist1 = CreateWordDistibution(words, ['A', 'Z'])
+wordsdist2 = CreateWordDistibution(words, ['A', 'Z'])
 
 X = SynthParams(50, 25, 25, 0.5, 0.05, 0.01, wordsdist1, wordsdist2)
 
@@ -100,14 +99,28 @@ function sampleFromWords(p, prev, distDict, vocab)
 end
 
 
-
+#input list of chars for strong
 function CreateWordDistibution(vocab, strong)
     dists = Dict{Char, Dict{Char, Float64}}()
+
+    luckyword = strong[1]
+    while luckyword in strong
+        luckyword = rand(vocab, 1)[1]
+    end
+    print(luckyword)
     for w in vocab
         dists[w] = Dict(w=>0)
 
-        
         probs = rand(length(vocab) - 1)
+
+
+        if w in strong
+            ind = findall(x -> x == luckyword, vocab)[1]
+
+            probs[ind] = 6.0
+
+        end
+
         probs = probs ./ sum(probs)
 
         i = 1
@@ -123,7 +136,7 @@ function CreateWordDistibution(vocab, strong)
     return dists
 end
 
-word2vec("synthcrps.txt", "synthvectors.txt")
+word2vec("synthcrps.txt", "synthvectors.txt", window = 2)
 
 m = wordvectors("synthvectors.txt")
 similarity(m, "A", "Z")
