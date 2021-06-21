@@ -3,7 +3,7 @@ using Statistics
 using Distributions
 include("../Maxwell/Packages.jl")
 
-numwords = 500
+numwords = 1000
     samples = 10000
 
 #Creating the Master Lookup
@@ -12,7 +12,7 @@ markovNuet = makeMarkov(numwords,5,1000)
 #Creating True Lookup
 markovTrue = copy(markovNuet)
     #Adjusting the occurance of the word 6
-    #markovTrue[:,5] ./= 100000000
+    markovFalse[:,1:10] .*= 100
     #readjusting the weights
     markovTrue = fixMarkov(markovTrue)
     #Converting to CDF for estimation
@@ -22,13 +22,13 @@ markovTrue = copy(markovNuet)
 trueResp = []
     for i in 1:samples
         push!(trueResp,
-            createSentance(markovCDFTrue,rand(10:20),true,false))
+            createSentance(markovCDFTrue,rand(100:200),true,false))
     end
 
 #creating false lookup
 markovFalse = copy(markovNuet)
     #Adjusting
-    #markovFalse[:,30:40] ./= 100
+    markovFalse[:,11:20] .*= 100
     #Fixing Sizes
     markovFalse = fixMarkov(markovFalse)
     #Creating CDF
@@ -38,7 +38,7 @@ markovFalse = copy(markovNuet)
 falseResp = []
     for i in 1:samples
         push!(falseResp,
-            createSentance(markovCDFFalse,rand(10:20),true, false))
+            createSentance(markovCDFFalse,rand(100:200),true, false))
     end
 
 #Creating the dataset
@@ -79,7 +79,10 @@ words = [k for (k,v) in d]
 occur = [v for (k,v) in d]
 df = DataFrame(hcat(words,occur), :auto)
 sort!(df, "x2")
-plot(reverse(1:length(df[:,2])),df[:,2])
+plot(log.(reverse(1:length(df[:,2]))[2:end]),log.(df[:,2][2:end]))
+
+dataframe = DataFrame(hcat(totalResp, classifier))
+CSV.write("wordy.csv", dataframe)
 
 #--------------------------------------------------------------
 
