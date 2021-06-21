@@ -1,15 +1,18 @@
 using Word2Vec
+using Statistics
+using Distributions
+include("Packages.jl")
 
-numwords = 5
+numwords = 500
     samples = 10000
 
 #Creating the Master Lookup
-markovNuet = makeMarkov(numwords,1,1)
+markovNuet = makeMarkov(numwords,5,1000)
 
 #Creating True Lookup
 markovTrue = copy(markovNuet)
     #Adjusting the occurance of the word 6
-    markovTrue[:,5] ./= 100000000
+    #markovTrue[:,5] ./= 100000000
     #readjusting the weights
     markovTrue = fixMarkov(markovTrue)
     #Converting to CDF for estimation
@@ -25,7 +28,7 @@ trueResp = []
 #creating false lookup
 markovFalse = copy(markovNuet)
     #Adjusting
-    markovFalse[:,30:40] ./= 100
+    #markovFalse[:,30:40] ./= 100
     #Fixing Sizes
     markovFalse = fixMarkov(markovFalse)
     #Creating CDF
@@ -52,7 +55,7 @@ for i in totalResp
     corpus = corpus * i
 end
 
-open("corpus.txt","a") do io
+open("English2.txt","a") do io
   println(io,corpus)
 end
 
@@ -62,7 +65,7 @@ word2vec("corpus.txt", "vectors.txt", size = Vlength, verbose = true,
             window = window, negative = 10, min_count = 0)
    M = wordvectors("vectors.txt", normalize = true)
 
-   rm("vectors.txt")
+   rm("synthvectors.txt")
 
 rm("corpus.txt")
 
@@ -166,3 +169,13 @@ function getnext(vec,num)
     end
     return length(vec)
 end
+
+uni = split(corpus, " ")
+d = countmap(uni)
+
+
+words = [k for (k,v) in d]
+occur = [v for (k,v) in d]
+df = DataFrame(hcat(words,occur), :auto)
+sort!(df, "x2")
+plot(reverse(1:length(df[:,2])),df[:,2])
