@@ -109,7 +109,7 @@ d = Flux.Data.DataLoader((vecs',class'), batchsize=100, shuffle = true)
    dtest = Flux.Data.DataLoader((testvecs',testclass'), shuffle = false)
 
 #Creating the Nueral Net, feed foward 20 -> 50 -> 1
-nn = Chain(Dense(20,5, relu),Dense(5,1,sigmoid))
+nn = Chain(Dense(15,5, relu),Dense(5,1,sigmoid))
 
    opt = ADAM()
 

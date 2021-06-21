@@ -1,15 +1,15 @@
 using Word2Vec
 
-numwords = 50
+numwords = 5
     samples = 10000
 
 #Creating the Master Lookup
-markovNuet = makeMarkov(numwords,50,100)
+markovNuet = makeMarkov(numwords,1,1)
 
 #Creating True Lookup
 markovTrue = copy(markovNuet)
     #Adjusting the occurance of the word 6
-    markovTrue[:,5:15] ./= 100
+    markovTrue[:,5] ./= 100000000
     #readjusting the weights
     markovTrue = fixMarkov(markovTrue)
     #Converting to CDF for estimation
