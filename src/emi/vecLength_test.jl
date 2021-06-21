@@ -25,18 +25,19 @@ field = " Cardiovascular / Pulmonary"
 # -------------------- vecLength for loop -----------------------
 # ---------------------------------------------------------------
 
-vecLength = 15
-window1 = 500
+vecLength = 30
+window1 = 400
 trainTestSplitPercent = .9
 η = 0.05
-epochs = 100
+epochs = 2000
 traceY3 = []
 
-for i in 1:vecLength
-    println(i, i, i, i, i)
+for i in 4:vecLength
+    print("This is iteration number: ")
+    println(i)
 
     # Creating the embeddings using Word2Vec
-    word2vec("corpus.txt", "vectors.txt", size = vecLength1, verbose = true, window = window1)
+    word2vec("corpus.txt", "vectors.txt", size = i, verbose = true, window = window1)
     M = wordvectors("vectors.txt", normalize = false)
     rm("vectors.txt")
 
@@ -54,8 +55,8 @@ for i in 1:vecLength
 
     tmat = Matrix(test)
 
-    vecsTrain = zeros(length(class),vecLength1)
-    vecsTest = zeros(length(tmat[:, 1]), vecLength1)
+    vecsTrain = zeros(length(class),i)
+    vecsTest = zeros(length(tmat[:, 1]), i)
 
     for i in 1:length(class)
         vecsTrain[i,:] = formulateText(M,data[i,3])
@@ -71,14 +72,11 @@ for i in 1:vecLength
 # ---------------------------------------------------------------
 # --------------------- Neural Net Training ---------------------
 # ---------------------------------------------------------------
-
+    ss = ceil(Int, i/2)
     function neural_net()
         nn = Chain(
-            Dense(30, 21, hardσ),
-            Dense(21, 15, hardσ),
-            Dense(15, 7, hardσ),
-            Dense(7, 3, hardσ),
-            Dense(3, 1, x->σ.(x))
+            Dense(i, ss, hardσ),
+            Dense(ss, 1, x->σ.(x))
             )
         return nn
     end
@@ -103,6 +101,7 @@ for i in 1:vecLength
     end
 
     # Accuracy
+    acc = 0
     for (x,y) in newTestData
         acc += sum((nn(x) .> .5) .== y)
     end
@@ -116,8 +115,8 @@ end
 # ------------------------ Visualization ------------------------
 # ---------------------------------------------------------------
 
-x = 1:vecLength
+x = 4:vecLength
 y = traceY3
 plot(x, y)
-xlabel!("Total vecLength")
+xlabel!("Total # of embeddings in each vector")
 ylabel!("Error Rate")

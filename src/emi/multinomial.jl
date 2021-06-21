@@ -4,6 +4,7 @@ using Statistics
 using ROCAnalysis
 using MLBase
 using Plots
+using Plotly
 
 include("../embeddings_nn.jl")
 include("../data_cleaning.jl")
@@ -16,8 +17,8 @@ include("../PCA.jl")
 # Vector length for embeddings, represents initial # of input nodes
 # Window size (the smaller, the more syntactic; the larger, the more topical)
 # Could add more than one set of embeddings, see "Word2VecReg.jl"
-vecLength1 = 100
-window1 = 50
+vecLength1 = 50
+window1 = 500
 
 trainTestSplitPercent = .9
 η = 0.05
@@ -116,9 +117,8 @@ test_mat = vecsTest'
 # @return nn - both dense layers tied together
 function neural_net()
     nn = Chain(
-        Dense(100, 75, relu),
-        Dense(75, 55, relu),
-        Dense(55, 29, Flux.sigmoid)
+        Dense(50, 39, relu),
+        Dense(39, 29, Flux.sigmoid)
         )
     return nn
 end
@@ -131,7 +131,7 @@ newTrainingData = Flux.Data.DataLoader((train_mat, field_mat'),
 # Defining our model, optimization algorithm and loss function
 # @function Descent - gradient descent optimiser with learning rate η
 nn = neural_net()
-opt = ADAM()
+opt = Descent(η)
 loss(x, y) = sum(Flux.Losses.logitcrossentropy(nn(x), y))
 
 # Actual training
@@ -171,6 +171,19 @@ print(percentError)
 println("%")
 
 # ---------------------------------------------------------------
+# ----------------------- Conformal Ideas -----------------------
+# ---------------------------------------------------------------
+#=
+conf_mat = train_mat
+class_mat = diagm(ones(29))
+new_class_mat = field_mat
+
+for i in 1:length(class_mat[1,:])
+    new_class_mat = vcat(new_class_mat, class_mat[i, :]')
+    conf_mat = vcat(conf_mat, test_mat[i, :]')
+end
+=#
+# ---------------------------------------------------------------
 # ------------------------ Visualization ------------------------
 # ---------------------------------------------------------------
 
@@ -181,6 +194,7 @@ plot(x, y, label = "Loss Progression")
 xlabel!("Total # of epochs")
 ylabel!("Loss values")
 
+#-------------------------------------------------------------------------------
 # Trace Plot 2 (test set accuracy vs epochs)
 x = 1:epochs
 y = traceY2
@@ -188,6 +202,54 @@ plot(x, y)
 xlabel!("Total # of epochs")
 ylabel!("Error Rate")
 
+#-------------------------------------------------------------------------------
+# Bar Chart (Accuracy by field)
+allFields = []
+allFields = vec(unique!(true_data[:,1]))
+rlyAllFields = []
+for i in 1:length(allFields)
+    push!(rlyAllFields, allFields[i])
+end
+correct_result = Vector{String}()
+incorrect_result = Vector{String}()
+incorrect_preds = Vector{String}()
+for (x,y) in newTestData
+    if classField(nn(x)) == vec(y')
+        push!(correct_result, uniqueFields[argmax(y)])
+    else
+        push!(incorrect_preds, uniqueFields[argmax(nn(x))])
+        push!(incorrect_result, uniqueFields[argmax(y)])
+    end
+end
+c1 = countmap(correct_result)
+c3 = countmap(incorrect_preds)
+c2 = countmap(incorrect_result)
+correctplot = []
+incorrectplot = []
+predplot = []
+for i in uniqueFields
+    push!(correctplot,get(c1, i, 0))
+    push!(incorrectplot,get(c2, i, 0))
+    push!(predplot, get(c3, i, 0))
+end
+totplot = correctplot .+ incorrectplot
+correctplot1 = correctplot ./ totplot
+incorrectplot1 = incorrectplot ./ totplot
+# Proportional bar chart
+groupedbar(rlyAllFields, [correctplot1 incorrectplot1], xrotation = 45,
+                bar_position = :stack, label = ["Correct" "Incorrect"],
+                xlabel = "Medical Fields", ylabel = "Proportions")
+# Not proportional bar chart
+groupedbar(rlyAllFields, [correctplot incorrectplot], xrotation = 45,
+                bar_position = :stack, label = ["Correct" "Incorrect"],
+                xlabel = "Medical Fields", ylabel = "Transcript Count")
+#
+groupedbar(rlyAllFields, [correctplot predplot], xrotation = 45,
+                bar_position = :stack, label = ["correct pred" "incorrect pred"],
+                xlabel = "Medical Fields", ylabel = "Transcript Count")
+
+
+#-------------------------------------------------------------------------------
 # Making an array for ROC curve plotting
 realVec = []
     for (x, y) in newTestData
@@ -202,6 +264,7 @@ realVec = []
     end
     trueVec = Vector{Float64}(trueVec)
 
+#-------------------------------------------------------------------------------
 # Printing an ROC curve for word2vec
 rocnums = MLBase.roc(classTest.==1, trueVec, 50)
 

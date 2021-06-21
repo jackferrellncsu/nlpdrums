@@ -74,7 +74,7 @@ function formulateText(model, script)
    return vecs ./ counter
 end
 
-function field_class(vec)
+function classField(vec)
    out = zeros(length(vec))
    out[argmax(vec)] = 1
    return out
