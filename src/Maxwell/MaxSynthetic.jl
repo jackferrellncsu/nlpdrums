@@ -1,7 +1,7 @@
 using Word2Vec
 using Statistics
 using Distributions
-include("Packages.jl")
+include("../Maxwell/Packages.jl")
 
 numwords = 500
     samples = 10000
@@ -70,6 +70,16 @@ word2vec("corpus.txt", "vectors.txt", size = Vlength, verbose = true,
 rm("corpus.txt")
 
 cosine_similar_words(M,"808")
+
+uni = split(corpus, " ")
+d = countmap(uni)
+
+
+words = [k for (k,v) in d]
+occur = [v for (k,v) in d]
+df = DataFrame(hcat(words,occur), :auto)
+sort!(df, "x2")
+plot(reverse(1:length(df[:,2])),df[:,2])
 
 #--------------------------------------------------------------
 
@@ -169,13 +179,3 @@ function getnext(vec,num)
     end
     return length(vec)
 end
-
-uni = split(corpus, " ")
-d = countmap(uni)
-
-
-words = [k for (k,v) in d]
-occur = [v for (k,v) in d]
-df = DataFrame(hcat(words,occur), :auto)
-sort!(df, "x2")
-plot(reverse(1:length(df[:,2])),df[:,2])
