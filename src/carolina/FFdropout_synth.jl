@@ -70,7 +70,7 @@ test_mat = vecsTest'
 
 function neural_net()
     nn = Chain(
-        Dense(15, 7, relu),
+        Dense(15, 7, mish),
         Dropout(0.6),
         Dense(7, 1, x->σ.(x))
     )

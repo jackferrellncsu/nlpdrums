@@ -3,7 +3,7 @@ using Flux
 include("../embeddings_nn.jl")
 include("../data_cleaning.jl")
 
-#import text, sort by field, and create corpus 
+#import text, sort by field, and create corpus
 text = importClean()
 sort!(text, "medical_specialty")
 createCorpusText(text, 1)
@@ -39,8 +39,8 @@ testingdata = Flux.Data.DataLoader((test_mat, classTest'))
 
 function neural_net()
     nn = Chain(
-        Dense(15, 7, hardσ),
-        Dropout(0.5),
+        Dense(15, 7, mish),
+        Dropout(0.6),
         Dense(7, 1, x->σ.(x))
     )
 end
