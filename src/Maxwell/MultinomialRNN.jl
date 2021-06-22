@@ -28,7 +28,7 @@ rm("corpus.txt")
 data, test = TrainTestSplit(datatot, .9);
 
 fieldClass = []
-uniqueFields = unique(true_data[:, 1])
+uniqueFields = unique(data[:, 1])
 for i in 1:length(data[:,1])
     push!(fieldClass, Flux.onehot(data[i, 1], uniqueFields))
 end
@@ -47,12 +47,12 @@ function loss(x, y)
    return sum(Flux.Losses.logitcrossentropy(rn.(x)[end], y))
 end
 
-opt = ADAM(.0001)
+opt = Descent(.01)
 
 epochs = 1000
 Keeps = []
 err = []
-for i in 1:1000
+for i in 1:epochs
     while isnan(ps[1][1]) == false
         push!(Keeps,deepcopy(ps))
         Flux.train!(loss , ps , zip(Scripts,fieldClass) , opt)
@@ -72,3 +72,5 @@ function formulateTextRNN(model, script, prop)
       end
       return vecs
 end
+
+Flux.loadparams!(rn,Keeps[end])
