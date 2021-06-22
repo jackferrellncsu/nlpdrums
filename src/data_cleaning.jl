@@ -4,6 +4,8 @@ using JLD
 
 export cleanData, importClean
 
+
+
 function cleanData()
     #=Reading csv file =#
     filename = "mtsamples.csv"
@@ -17,7 +19,7 @@ function cleanData()
             arr[i,5] = replace(arr[i,5], ".," => " ")
             arr[i,5] = replace(arr[i,5], [',',';','.',')','(', '!', '+', '{', '}',
                                           '[', ']', '-', '+', '_', '~', ''', '"', '*',
-                                          '?', '<', '>', '%', '$'] => "")
+                                          '?', '<', '>', '%', '$', ':'] => "")
             arr[i,5] = replace(arr[i,5], r":" => ": ")
             arr[i,5] = replace(arr[i,5], r"\s\s+"=> " ")
             arr[i,5] = lowercase(arr[i,5])
