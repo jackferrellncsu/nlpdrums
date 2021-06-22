@@ -97,6 +97,12 @@ git-tree-sha1 = "e747dac84f39c62aff6956651ec359686490134e"
 uuid = "0b7ba130-8d10-5ba8-a3d6-c5182647fed9"
 version = "1.21.0+0"
 
+[[BytePairEncoding]]
+deps = ["DelimitedFiles", "InternedStrings", "WordTokenizers"]
+git-tree-sha1 = "f137186d052e97e98f6428f11698da50b984e131"
+uuid = "a4280ba5-8788-555a-8ca8-4a8c3d966a71"
+version = "0.2.0"
+
 [[Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "19a35467a82e236ff51bc17a3a44b69ef35185a2"
@@ -548,6 +554,12 @@ version = "2018.0.3+2"
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
+[[InternedStrings]]
+deps = ["Random", "Test"]
+git-tree-sha1 = "eb05b5625bc5d821b8075a77e4c421933e20c76b"
+uuid = "7d512f48-7fb1-5a58-b986-67e6dc259f01"
+version = "0.7.0"
+
 [[Interpolations]]
 deps = ["AxisAlgorithms", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
 git-tree-sha1 = "1e0e51692a3a77f1eeb51bf741bdd0439ed210e7"
@@ -741,6 +753,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "7f3efec06033682db852f8b3bc3c1d2b0a0ab066"
 uuid = "38a345b3-de98-5d2b-a5d3-14cd9215e700"
 version = "2.36.0+0"
+
+[[LightXML]]
+deps = ["Libdl", "XML2_jll"]
+git-tree-sha1 = "e129d9391168c677cd4800f5c0abb1ed8cb3794f"
+uuid = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
+version = "0.9.0"
 
 [[LinearAlgebra]]
 deps = ["Libdl"]
@@ -950,6 +968,12 @@ deps = ["Dates"]
 git-tree-sha1 = "c8abc88faa3f7a3950832ac5d6e690881590d6dc"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "1.1.0"
+
+[[Pickle]]
+deps = ["DataStructures", "InternedStrings", "Serialization", "Strided", "ZipFile"]
+git-tree-sha1 = "56c074007797d173da4411d45b2cda439c48930b"
+uuid = "fbb45041-c46e-462f-888f-7c521cafbc2c"
+version = "0.2.2"
 
 [[Pidfile]]
 deps = ["FileWatching", "Test"]
@@ -1240,6 +1264,12 @@ git-tree-sha1 = "5998faae8c6308acc25c25896562a1e66a3bb038"
 uuid = "9700d1a9-a7c8-5760-9816-a99fda30bb8f"
 version = "1.0.1"
 
+[[Strided]]
+deps = ["LinearAlgebra", "TupleTools"]
+git-tree-sha1 = "82111d3fe7982756d98e8b6606394efc6bb8df40"
+uuid = "5e0ebb24-38b0-5f93-81fe-25c709ecae67"
+version = "1.1.1"
+
 [[StructTypes]]
 deps = ["Dates", "UUIDs"]
 git-tree-sha1 = "e36adc471280e8b346ea24c5c87ba0571204be7a"
@@ -1315,6 +1345,17 @@ deps = ["Random", "Test"]
 git-tree-sha1 = "7c53c35547de1c5b9d46a4797cf6d8253807108c"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.5"
+
+[[Transformers]]
+deps = ["AbstractTrees", "Adapt", "BSON", "BytePairEncoding", "CUDA", "DataDeps", "DataStructures", "Dates", "DelimitedFiles", "Flux", "Functors", "HTTP", "InternedStrings", "JSON", "LightXML", "LinearAlgebra", "MacroTools", "Markdown", "Pickle", "Pkg", "Random", "Requires", "SHA", "Statistics", "Unicode", "WordTokenizers", "ZipFile", "ZygoteRules"]
+git-tree-sha1 = "24f8b9ee51bedfc315a555efffcfe4d541e73d46"
+uuid = "21ca0261-441d-5938-ace7-c90938fde4d4"
+version = "0.1.11"
+
+[[TupleTools]]
+git-tree-sha1 = "62a7a6cd5a608ff71cecfdb612e67a0897836069"
+uuid = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
+version = "1.2.0"
 
 [[URIParser]]
 deps = ["Unicode"]
