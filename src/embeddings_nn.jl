@@ -62,7 +62,7 @@ end
 # Turns documents to vectors
 function formulateText(model, script)
    words = split(script, " ")
-   vecs = zeros(length(get_vector(model,"the")))
+   vecs = zeros(length(get_vector(model,vocabulary(model)[1])))
    counter = 0
    for i in words[1:end]
       if i in vocabulary(model) && i ∉ stopwords(Languages.English())

@@ -5,7 +5,7 @@ include("../data_cleaning.jl")
 
 text = importClean()
 sort!(text, "medical_specialty")
-createCorpusText(text, 10)
+createCorpusText(text, 1)
 
 field = " Cardiovascular / Pulmonary"
 word2vec("corpus.txt", "vectors.txt", size = 15, window = 20)
@@ -39,11 +39,13 @@ testingdata = Flux.Data.DataLoader((test_mat, classTest'))
 function neural_net()
     nn = Chain(
         Dense(15, 7, hardσ),
+        Dropout(0.5),
         Dense(7, 1, x->σ.(x))
     )
 end
 
 neuralnet = neural_net()
+Flux.testmode!(neuralnet)
 opt = Descent(0.05)
 
 lozz(x, y) = sum(Flux.Losses.binarycrossentropy(neuralnet(x), y))
@@ -60,6 +62,7 @@ end
 
 acc = 0
 for (x, y) in testingdata
+    print(neuralnet(x))
     acc+=sum((neuralnet(x).>0.5) .== y)
     print(neuralnet(x) .> .5, " : ")
     println(y)
