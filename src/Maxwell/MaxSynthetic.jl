@@ -3,6 +3,7 @@ using Statistics
 using Distributions
 include("../Maxwell/Packages.jl")
 
+#------------------
 numwords = 1000
     samples = 10000
 
@@ -11,8 +12,8 @@ markovNuet = makeMarkov(numwords,5,1000)
 
 #Creating True Lookup
 markovTrue = copy(markovNuet)
-    #Adjusting the occurance of the word 6
-    markovFalse[:,1:10] .*= 100
+    #Adjusting the occurance of the word 6 (75x = 10% Error)
+    markovFalse[:,1:10] .*= 75
     #readjusting the weights
     markovTrue = fixMarkov(markovTrue)
     #Converting to CDF for estimation
@@ -22,13 +23,13 @@ markovTrue = copy(markovNuet)
 trueResp = []
     for i in 1:samples
         push!(trueResp,
-            createSentance(markovCDFTrue,rand(100:200),true,false))
+            createSentance(markovCDFTrue,rand(50:100),true,false))
     end
 
 #creating false lookup
 markovFalse = copy(markovNuet)
     #Adjusting
-    markovFalse[:,11:20] .*= 100
+    markovFalse[:,11:20] .*= 75
     #Fixing Sizes
     markovFalse = fixMarkov(markovFalse)
     #Creating CDF
@@ -38,7 +39,7 @@ markovFalse = copy(markovNuet)
 falseResp = []
     for i in 1:samples
         push!(falseResp,
-            createSentance(markovCDFFalse,rand(100:200),true, false))
+            createSentance(markovCDFFalse,rand(50:100),true, false))
     end
 
 #Creating the dataset
@@ -49,6 +50,13 @@ append!(totalResp, falseResp)
 #creating the classifiers
 classifier = ones(samples)
 append!(classifier, zeros(samples))
+
+rm("wordy.csv")
+
+dataframe = DataFrame(hcat(totalResp, classifier))
+CSV.write("wordy.csv", dataframe)
+#---------------
+
 
 corpus = ""
 for i in totalResp
@@ -80,9 +88,6 @@ occur = [v for (k,v) in d]
 df = DataFrame(hcat(words,occur), :auto)
 sort!(df, "x2")
 plot(log.(reverse(1:length(df[:,2]))[2:end]),log.(df[:,2][2:end]))
-
-dataframe = DataFrame(hcat(totalResp, classifier))
-CSV.write("wordy.csv", dataframe)
 
 #--------------------------------------------------------------
 

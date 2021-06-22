@@ -24,7 +24,7 @@ window1 = 3
 
 trainTestSplitPercent = .9
 η = 0.05
-epochs = 100
+epochs = 250
 
 # 0 = no pad
 # 1 = pad between field
@@ -54,13 +54,12 @@ rm("vectors.txt")
 # datasub = filtration(true_data, field)
 data, test = TrainTestSplit(true_data, trainTestSplitPercent)
 
-
+# Creating classification columns
 class = data[:,2]
 class = class * 1.0
 
 classTest = test[:, 2]
 classTest = classTest * 1.0
-
 
 tmat = Matrix(test)
 
@@ -107,9 +106,8 @@ newTrainingData = Flux.Data.DataLoader((train_mat, class'),
 # Defining our model, optimization algorithm and loss function
 # @function Descent - gradient descent optimiser with learning rate η
 nn = neural_net()
-opt = Descent(η)
+opt = Flux.Optimiser(ExpDecay(0.01, 0.1, 50, 1e-4), RADAM())
 loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
-
 # Actual training
 totalLoss = []
 traceY = []

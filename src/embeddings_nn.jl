@@ -74,8 +74,20 @@ function formulateText(model, script)
    return vecs ./ counter
 end
 
+# Takes in multinomial probabilities and creates
+# a one hot vector
 function classField(vec)
    out = zeros(length(vec))
    out[argmax(vec)] = 1
    return out
+end
+
+
+function getArray(mat::AbstractMatrix{T}) where T
+   len, wid = size(mat)
+   B = Vector{T}[Vector{T}(undef, wid) for _ in 1:len]
+   for i in 1:len
+      B[i] .= mat[i, :]
+   end
+   return B
 end
