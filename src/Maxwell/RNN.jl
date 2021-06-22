@@ -1,17 +1,18 @@
 include("../DTMCreation.jl")
 include("../data_cleaning.jl")
 include("Packages.jl")
-include("../emi/embeddingsForMax.jl")
+include("../embeddings_nn.jl")
 
 
-datatot = CSV.read("wordy.csv", DataFrame)
-createCorpusText(datatot,0)
+datatot = importClean()
+sort!(datatot, "medical_specialty")
+createCorpusText(datatot,1)
 
 #defining the lengths of the syntanctic or topical embeddings
-vecLength1 = 5
+vecLength1 = 15
 
 #Defining the window sizes
-window1 = 50
+window1 = 500
 
 #Creating the syntactic vector
 word2vec("corpus.txt", "vectors.txt", size = vecLength1, verbose = true,
@@ -23,33 +24,41 @@ word2vec("corpus.txt", "vectors.txt", size = vecLength1, verbose = true,
    #creting the topical vectors
 
 #Desired field
+field = " Cardiovascular / Pulmonary"
+
 
 rm("corpus.txt")
 
+datasub = filtration(datatot, field)
+   data, test = TrainTestSplit(datasub, .9);
 
-data, test = TrainTestSplit(datatot, .9);
+class = data[:,1].==field
+
+fieldClass = []
+uniqueFields = unique(true_data[:, 1])
+for i in 1:length(data[:,1])
+    push!(fieldClass, Flux.onehot(data[i, 1], uniqueFields))
+end
 
 Scripts = []
-for i in 1:size(data)[1]
-            push!(Scripts,(formulateTextRNN(M,data[i,1],1)))
+for i in 1:length(class)
+            push!(Scripts,vcat(formulateTextRNN(M,data[i,3],1)))
    end
 
-rn = Chain(Flux.RNN(5,1), x->σ.(x))
+rn = Chain(Flux.GRU(15,50),Dense(50,25,Flux.swish),Dense(25,1,sigmoid))
 
 #rn = Flux.RNN(5,1,x -> σ.(x))
 
 ps = Flux.params(rn)
 
-
 function loss(x, y)
-   if rand() <= .1
+   if rand() <= .5
       Flux.reset!(rn)
       return sum(Flux.Losses.binarycrossentropy(rn.(x)[end], y))
    else
       return 0
    end
 end
-
 
 opt = RADAM()
 
@@ -59,32 +68,34 @@ err = []
 for a in 1:epochs
     while isnan(ps[1][1]) == false
         push!(Keeps,deepcopy(ps))
-        Flux.train!(loss , ps , zip(Scripts,data[:,2]) , opt)
-        println(ps)
-        e = sum(loss.(Scripts,data[:,2]))
+        Flux.train!(loss , ps , zip(Scripts,class) , opt)
+        e = sum(loss.(Scripts,class))
         push!(err,e)
-        print(a, " : ", e)
+        println(" : ", e)
     end
 end
 
+classtest = test[:,1] .== field
 
 Scriptstest = []
-   for i in 1:size(test)[1]
-         push!(Scriptstest,vcat(formulateTextRNN(M,data[i,1],1)))
+   for i in 1:length(classtest)
+            push!(Scriptstest,vcat(formulateTextRNN(M,data[i,3],1)))
    end
 
 correct = 0
-for i in 1:size(test)[1]
-   correct += ((rn.(Scriptstest[i])[end][1] .> .5) .== test[i,2])
+for i in 1:length(classtest)
+   Flux.reset!(rn)
+   correct += ((rn.(Scriptstest[i])[end][1] .> .5) == classtest[i])
 end
-println(correct/size(test)[1])
+println(1-correct/length(classtest))
 
 correct = 0
-for i in 1:size(data)[1]
-   correct += ((rn.(Scripts[i])[end][1] > .5) .== data[i,2])
+for i in 1:length(class)
+   Flux.reset!(rn)
+   correct += ((rn.(Scripts[i])[end][1] > .5) == class[i])
 end
 
-println(correct/size(data)[1])
+println(1-correct/length(class))
 
 
 

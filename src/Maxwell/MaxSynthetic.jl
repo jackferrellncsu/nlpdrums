@@ -1,19 +1,21 @@
 using Word2Vec
 using Statistics
 using Distributions
-include("../Maxwell/Packages.jl")
+using Random
+include("Packages.jl")
 
-#------------------
-numwords = 1000
-    samples = 10000
+rm("English2.txt")
+
+numwords = 100
+    samples = 500000
 
 #Creating the Master Lookup
 markovNuet = makeMarkov(numwords,5,1000)
 
 #Creating True Lookup
 markovTrue = copy(markovNuet)
-    #Adjusting the occurance of the word 6 (75x = 10% Error)
-    markovFalse[:,1:10] .*= 75
+    #Adjusting the occurance of the word 6
+    markovFalse[:,1:10] .*= 50
     #readjusting the weights
     markovTrue = fixMarkov(markovTrue)
     #Converting to CDF for estimation
@@ -22,14 +24,27 @@ markovTrue = copy(markovNuet)
 #Creating True Samples
 trueResp = []
     for i in 1:samples
-        push!(trueResp,
-            createSentance(markovCDFTrue,rand(50:100),true,false))
+        println(i)
+        sent = createSentance(markovCDFTrue,rand(50:75),true,false)
+        push!(trueResp,sent)
+        open("English2.txt","a") do io
+            println(io,sent)
+        end
     end
+
+padding = " "
+for i in 1:100
+    padding = padding * "- "
+end
+
+open("English2.txt","a") do io
+    println(padding)
+end
 
 #creating false lookup
 markovFalse = copy(markovNuet)
     #Adjusting
-    markovFalse[:,11:20] .*= 75
+    markovFalse[:,11:20] .*= 50
     #Fixing Sizes
     markovFalse = fixMarkov(markovFalse)
     #Creating CDF
@@ -38,8 +53,12 @@ markovFalse = copy(markovNuet)
 #creating false samples
 falseResp = []
     for i in 1:samples
-        push!(falseResp,
-            createSentance(markovCDFFalse,rand(50:100),true, false))
+        println(i)
+        sent = createSentance(markovCDFFalse,rand(50:75),true, false)
+        push!(falseResp,sent)
+        open("English2.txt","a") do io
+          println(io,sent)
+        end
     end
 
 #Creating the dataset
@@ -51,13 +70,6 @@ append!(totalResp, falseResp)
 classifier = ones(samples)
 append!(classifier, zeros(samples))
 
-rm("wordy.csv")
-
-dataframe = DataFrame(hcat(totalResp, classifier))
-CSV.write("wordy.csv", dataframe)
-#---------------
-
-
 corpus = ""
 for i in totalResp
     corpus = corpus * i
@@ -67,11 +79,11 @@ open("English2.txt","a") do io
   println(io,corpus)
 end
 
-Vlength,window = [5,15]
+Vlength,window = [5,100]
 
-word2vec("corpus.txt", "vectors.txt", size = Vlength, verbose = true,
-            window = window, negative = 10, min_count = 0)
-   M = wordvectors("vectors.txt", normalize = true)
+word2vec("/Users/mlovig/Documents/GitHub/nlpdrums/src/E2/English2.txt", "ForeignVectors.txt", size = Vlength, verbose = true,
+            window = window)
+   M = wordvectors("ForeignVectors.txt", normalize = true)
 
    rm("synthvectors.txt")
 
@@ -88,6 +100,11 @@ occur = [v for (k,v) in d]
 df = DataFrame(hcat(words,occur), :auto)
 sort!(df, "x2")
 plot(log.(reverse(1:length(df[:,2]))[2:end]),log.(df[:,2][2:end]))
+
+rm("wordy.csv")
+dataframe = DataFrame(hcat(totalResp, classifier))
+dataframe = DataFrame(shuffle(eachrow(dataframe)))
+CSV.write("wordy.csv", dataframe)
 
 #--------------------------------------------------------------
 
