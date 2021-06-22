@@ -3,6 +3,7 @@ using Flux
 include("../embeddings_nn.jl")
 include("../data_cleaning.jl")
 
+#import text, sort by field, and create corpus 
 text = importClean()
 sort!(text, "medical_specialty")
 createCorpusText(text, 1)
@@ -52,6 +53,8 @@ lozz(x, y) = sum(Flux.Losses.binarycrossentropy(neuralnet(x), y))
 
 para = Flux.params(neuralnet)
 
+# training the model
+
 epochs = 500
 
 for i in 1:epochs
@@ -60,6 +63,8 @@ for i in 1:epochs
 end
 
 
+# prints predictions vs actual
+# and error rate
 acc = 0
 for (x, y) in testingdata
     print(neuralnet(x))
