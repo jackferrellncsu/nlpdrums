@@ -34,7 +34,7 @@ for i in 1:size(data)[1]
             push!(Scripts,(formulateTextRNN(M,data[i,1],1)))
    end
 
-rn = Chain(Flux.RNN(5,1), x->σ.(x))
+rn = Chain(Flux.LSTM(5,10),Dense(10,1, x->σ.(x)))
 
 #rn = Flux.RNN(5,1,x -> σ.(x))
 
@@ -42,7 +42,7 @@ ps = Flux.params(rn)
 
 
 function loss(x, y)
-   if rand() <= .1
+   if rand() <= .66
       Flux.reset!(rn)
       return sum(Flux.Losses.binarycrossentropy(rn.(x)[end], y))
    else
@@ -56,28 +56,28 @@ opt = RADAM()
 epochs = 1000
 Keeps = []
 err = []
-for a in 1:epochs
+for i in 1:1000
     while isnan(ps[1][1]) == false
         push!(Keeps,deepcopy(ps))
         Flux.train!(loss , ps , zip(Scripts,data[:,2]) , opt)
-        println(ps)
         e = sum(loss.(Scripts,data[:,2]))
         push!(err,e)
-        print(a, " : ", e)
+        print(i, " : ", e)
     end
 end
 
 
 Scriptstest = []
    for i in 1:size(test)[1]
-         push!(Scriptstest,vcat(formulateTextRNN(M,data[i,1],1)))
+         push!(Scriptstest,(formulateTextRNN(M,test[i,1],1)))
    end
 
 correct = 0
 for i in 1:size(test)[1]
+   Flux.reset!(rn)
    correct += ((rn.(Scriptstest[i])[end][1] .> .5) .== test[i,2])
 end
-println(correct/size(test)[1])
+println(1-correct/size(test)[1])
 
 correct = 0
 for i in 1:size(data)[1]
