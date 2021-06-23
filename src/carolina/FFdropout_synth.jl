@@ -92,7 +92,7 @@ for i in 1:1000
 
     neuralnet = neural_net()
     Flux.testmode!(neuralnet)
-    opt = Descent(0.05)
+    opt = RADAM()
 
     loss(x, y) = sum(Flux.Losses.binarycrossentropy(neuralnet(x), y))
 
