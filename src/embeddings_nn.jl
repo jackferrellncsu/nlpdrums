@@ -82,8 +82,8 @@ function classField(vec)
    return out
 end
 
-
-function getArray(mat::AbstractMatrix{T}) where T
+# matrix to vector of vector
+function getVector(mat::AbstractMatrix{T}) where T
    len, wid = size(mat)
    B = Vector{T}[Vector{T}(undef, wid) for _ in 1:len]
    for i in 1:len
