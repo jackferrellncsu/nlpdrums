@@ -24,15 +24,17 @@ end
 parsed_args = parse_commandline()
 
 using Glowe
-using Lathe
+using Lathe.preprocess: TrainTestSplit
 using Embeddings
 using LinearAlgebra
 using Flux
 using Plots
 using JLD
 using Random
+using CSV
+using DataFrames
 
-include("../embeddings_nn.jl")
+
 
 function SampleEmbeddings(df, vec_size)
     embed = 0
@@ -60,21 +62,13 @@ function getEmbedding(word)
     return emb
 end
 
-trainTestSplitPercent = .9
-batchsize_custom = 100
-epochs = 500
-
-errorrates = []
-predictions = []
-trueValues = []
-
 n = parse(Int64, get(parsed_args, "arg1", 0 ))
 
 lower  = (n-1)*1000 + 1
 upper = n*1000
 SAMPLE = CSV.read("JonsData.csv", DataFrame)
 
-SAMPLE = SAMPLE[lower:upper, :]
+SAMPLE = SAMPLE[1:1000, :]
 
 trainTestSplitPercent = .9
 batchsize_custom = 100
@@ -97,11 +91,11 @@ trainEmbs = SampleEmbeddings(train, vec_length)
 testEmbs = SampleEmbeddings(test, vec_length)
 
 #Get classifications for train/val/test
-classTrain = train[:, 1] .== field
-classTrain = classTrain * 1.0
+classTrain = train[:, 2]
 
-classTest = test[:, 1] .== field
-classTest = classTest * 1.0
+
+classTest = test[:, 2]
+
 
 batchsize_custom = 100
 
