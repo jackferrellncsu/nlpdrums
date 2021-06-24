@@ -62,11 +62,11 @@ end
 # Turns documents to vectors
 function formulateText(model, script)
    words = split(script, " ")
-   vecs = zeros(length(get_vector(model,vocabulary(model)[1])))
+   vecs = zeros(length(Word2Vec.get_vector(model,Word2Vec.vocabulary(model)[1])))
    counter = 0
    for i in words[1:end]
-      if i in vocabulary(model) && i ∉ stopwords(Languages.English())
-         vecs = vecs .+ get_vector(model,i)
+      if i in Word2Vec.vocabulary(model) && i ∉ stopwords(Languages.English())
+         vecs = vecs .+ Word2Vec.get_vector(model,i)
           #&& i ∉ stopwords(Languages.English())
          counter += 1
       end

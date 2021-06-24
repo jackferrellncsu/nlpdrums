@@ -47,6 +47,11 @@ git-tree-sha1 = "b25e88db7944f98789130d7b503276bc34bc098e"
 uuid = "bf4720bc-e11a-5d0c-854e-bdca1663c893"
 version = "0.1.0"
 
+[[AutoHashEquals]]
+git-tree-sha1 = "45bb6705d93be619b81451bb2006b7ee5d4e4453"
+uuid = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
+version = "0.2.0"
+
 [[AxisAlgorithms]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
 git-tree-sha1 = "a4d07a1c313392a77042855df46c5f534076fab9"
@@ -296,9 +301,21 @@ git-tree-sha1 = "a32185f5428d3986f47c2ab78b1f216d5e6cc96f"
 uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 version = "0.8.5"
 
+[[Documenter]]
+deps = ["Base64", "Dates", "DocStringExtensions", "InteractiveUtils", "JSON", "LibGit2", "Logging", "Markdown", "REPL", "Test", "Unicode"]
+git-tree-sha1 = "395fa1554c69735802bba37d9e7d9586fd44326c"
+uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+version = "0.24.11"
+
 [[Downloads]]
 deps = ["ArgTools", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+
+[[Embeddings]]
+deps = ["AutoHashEquals", "DataDeps", "GoogleDrive", "Statistics"]
+git-tree-sha1 = "46da025753832eac7f10e6d761e29a7bb60bc40c"
+uuid = "c5bfea45-b7f1-5224-a596-15500f5db411"
+version = "0.4.2"
 
 [[Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -443,6 +460,18 @@ deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libic
 git-tree-sha1 = "47ce50b742921377301e15005c96e979574e130b"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.68.1+0"
+
+[[Glowe]]
+deps = ["LinearAlgebra", "Statistics", "Test"]
+git-tree-sha1 = "8969388b206c55a8bf81415da93aa4ea1dcfed0a"
+uuid = "d04f5788-f3bf-50c4-8044-9206750af6c9"
+version = "0.1.1"
+
+[[GoogleDrive]]
+deps = ["DataDeps", "Dates", "Documenter", "HTTP", "Random"]
+git-tree-sha1 = "6563e7c46ff2085937a5d9dd8eedac0c607a5a5e"
+uuid = "91feb7a0-3508-11ea-1e8e-afea2c1c9a19"
+version = "0.1.1"
 
 [[Graphics]]
 deps = ["Colors", "LinearAlgebra", "NaNMath"]

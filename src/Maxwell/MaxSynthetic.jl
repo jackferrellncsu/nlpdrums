@@ -2,6 +2,7 @@ using Word2Vec
 using Statistics
 using Distributions
 using Random
+using StatsBase
 include("Packages.jl")
 
 rm("English2.txt")
@@ -91,16 +92,23 @@ rm("corpus.txt")
 
 cosine_similar_words(M,"808")
 
+open("English2.txt","a") do io
+  corpus = (io,corpus)
+end
+
+corpus = open(f->read(f, String), "English2.txt")
+corpus= replace(corpus, "\n" => "")
+
 uni = split(corpus, " ")
 d = countmap(uni)
 
-
 words = [k for (k,v) in d]
 occur = [v for (k,v) in d]
-df = DataFrame(hcat(words,occur), :auto)
+df = DataFrame(hcat(words,occur))
 sort!(df, "x2")
-plot(log.(reverse(1:length(df[:,2]))[2:end]),log.(df[:,2][2:end]))
-
+plot(log.(reverse(1:length(df[:,2]))[2:end]),log.(df[:,2][2:end]), leg = false)
+xlabel!("Ranking")
+ylabel!("log(Total Occurance)")
 rm("wordy.csv")
 dataframe = DataFrame(hcat(totalResp, classifier))
 dataframe = DataFrame(shuffle(eachrow(dataframe)))
@@ -204,3 +212,5 @@ function getnext(vec,num)
     end
     return length(vec)
 end
+
+print(1)
