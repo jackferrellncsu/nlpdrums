@@ -55,7 +55,7 @@ para = Flux.params(neuralnet)
 
 # training the model
 
-epochs = 500
+epochs = 1000
 
 for i in 1:epochs
     println(i)
@@ -68,8 +68,16 @@ end
 acc = 0
 for (x, y) in testingdata
     print(neuralnet(x))
-    acc+=sum((neuralnet(x).>0.5) .== y)
+    global acc+=sum((neuralnet(x).>0.5) .== y)
     print(neuralnet(x) .> .5, " : ")
     println(y)
 end
 println(1 - acc/length(classTest))
+
+#= Trace Plot ??
+x = 1:epochs
+y = traceY
+Plots.plot(x, y, label = "Loss Progression")
+xlabel!("Total # of epochs")
+ylabel!("Loss values")
+=#

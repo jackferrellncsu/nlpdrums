@@ -15,7 +15,7 @@ using Statistics
 using Lathe.preprocess: TrainTestSplit
 using Flux
 
-true_data = CSV.read("wordy.csv", DataFrame)
+true_data = CSV.read("JonsData.csv", DataFrame)
 true_data = true_data[1:1000, :]
 DTM = CreateDTM(true_data)
 total_DTM = DataFrame(DTM')
@@ -24,21 +24,25 @@ errors = []
 parameters,runs = [25,100]
 Errors = Matrix(undef, parameters,runs)
 complength = 15
-for i in 1:1000
-    train, test = TrainTestSplit(data[(i-1)*1000+1:(i)*1000, :], TrainTestSplitPercent)
+#for i in 1:1000
+i = 1
+    train, test = TrainTestSplit(total_DTM[(i-1)*1000+1:(i)*1000, :], TrainTestSplitPercent)
+
+
     #Make training test set
     println(i)
 
     Us, Sigs, Vts = PCA(Matrix(train)[:, 1:end - 1], complength)
 
-    dftrain = DataFrame(hcat(Us[ii],train[:,end]))
+    dftrain = DataFrame(hcat(Us[complength],train[:,end]))
     #Append Training Data with classifier
 
     z=term(Symbol(:x, complength+1)) ~ term(0) + sum(term.(Symbol.(names(dftrain[:, Not(Symbol(:x, complength+1))]))))
 
     logit = glm(z,dftrain, Bernoulli(), LogitLink())
 
-    #Report the Error
+    #Report the Predictions
+    #preds =
 end
 
 for i in 1:24
@@ -50,7 +54,7 @@ xlabel!("# of Principal Components")
 ylabel!("Validation Error")
 
 
-rocnums = MLBase.roc(test[:,end] .== 1,vec(rets), 50)
+rocnums = MLBase.roc(test[:,end] .== 1,preds, 50)
 
 TP = []
 FP = []

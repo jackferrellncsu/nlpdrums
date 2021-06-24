@@ -33,11 +33,11 @@ epochs = 500
 paddingchoice = 0
 batchsize_ = 100
 
-data = CSV.read("../nlpdrums/wordy/wordy.csv", DataFrame)
+data = CSV.read("JonsData.csv", DataFrame)
 #createCorpusText(data[:,1], paddingchoice)
 
 # creating embeddings
-word2vec("English2.txt", "vectors.txt", size = veclength, verbose = true,
+word2vec("corpus.txt", "vectors.txt", size = veclength, verbose = true,
                                                             window = windowsize)
 M = wordvectors("vectors.txt", normalize = false)
 rm("vectors.txt")
