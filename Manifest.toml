@@ -17,6 +17,12 @@ git-tree-sha1 = "84918055d15b3114ede17ac6a7182f68870c16f7"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.3.1"
 
+[[ArgParse]]
+deps = ["Logging", "TextWrap"]
+git-tree-sha1 = "3102bce13da501c9104df33549f511cd25264d7d"
+uuid = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+version = "1.1.4"
+
 [[ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 
@@ -1362,6 +1368,11 @@ deps = ["DataStructures", "DelimitedFiles", "JSON", "Languages", "LinearAlgebra"
 git-tree-sha1 = "bc85e54209c30e69e1925460ec0257a916683f59"
 uuid = "a2db99b7-8b79-58f8-94bf-bbc811eef33d"
 version = "0.7.3"
+
+[[TextWrap]]
+git-tree-sha1 = "9250ef9b01b66667380cf3275b3f7488d0e25faf"
+uuid = "b718987f-49a8-5099-9789-dcd902bef87d"
+version = "1.0.1"
 
 [[TimerOutputs]]
 deps = ["ExprTools", "Printf"]
