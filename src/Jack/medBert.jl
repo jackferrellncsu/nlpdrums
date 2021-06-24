@@ -35,10 +35,15 @@ trainValForm = dataset_med(trainVal, "med")
 
 preprocess(get_batch(trainValForm, 2))
 
+get_batch(trainValForm, 3)
 
-
+text = []
 for (i, b) in enumerate(trainValForm[1])
-    println(markline.(wordpiece.(tokenizer.(b))))
+    println("Loop #: ", i)
+    sent = markline.(wordpiece.(tokenizer.(b)))
+    for s in sentk
+        append!(text, s)
+    end
     if i > 3
         break
     end
@@ -53,14 +58,17 @@ vocab = Transformers.Vocabulary(wordpiece)
 markline(sen) = [sen; "[SEP]"]
 markdoc(sen) = ["[CLS]"; sen]
 function preprocess(batch)
-    sentence = Vector{String}()
+    doc = Vector{String}()
     for b in batch[1]
-        append!(sentence, markline.(wordpiece.(tokenizer.(b))))
-        sentence = markdoc(sentence)
+        sentences = markline.(wordpiece.(tokenizer.(b)))
+        for s in sentences
+            append!(doc, s)
+        end
     end
+    doc = markdoc(doc)
 
-    mask = getmask(sentence)
-    tok = vocab(sentence)
+    mask = getmask(doc)
+    tok = vocab(doc)
     segment = fill!(similar(tok), 1)
 
 

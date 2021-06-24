@@ -2,6 +2,7 @@ using Flux
 using Lathe
 using MLBase
 using Plots
+using Word2Vec
 
 include("../data_cleaning.jl")
 include("../embeddings_nn.jl")
@@ -26,7 +27,7 @@ field = " Cardiovascular / Pulmonary"
 
 # Creating the embeddings using Word2Vec
 word2vec("corpus.txt", "vectors.txt", size = vecLength1, verbose = true, window = window1)
-M = wordvectors("vectors.txt", normalize = false)
+M = Word2Vec.wordvectors("vectors.txt", normalize = false)
 rm("vectors.txt")
 rm("corpus.txt")
 
