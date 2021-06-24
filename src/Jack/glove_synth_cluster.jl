@@ -32,14 +32,13 @@ using Plots
 using JLD
 using Random
 
-include("data_cleaning.jl")
-include("embeddings_nn.jl")
+include("../embeddings_nn.jl")
 
 function SampleEmbeddings(df, vec_size)
     embed = 0
     embed_mat = Matrix{Float64}(I, vec_size, length(eachrow(df)))
     for (i, r) in enumerate(eachrow(df))
-        doc = split(r[3])
+        doc = split(r[1])
         embed = getEmbedding(doc[1])
         for d in doc[2:end]
             embed += getEmbedding(d)
@@ -69,22 +68,30 @@ errorrates = []
 predictions = []
 trueValues = []
 
+n = parse(Int64, get(parsed_args, "arg1", 0 ))
+
+lower  = (n-1)*1000 + 1
+upper = n*1000
+SAMPLE = CSV.read("JonsData.csv", DataFrame)
+
+SAMPLE = SAMPLE[lower:upper, :]
+
+trainTestSplitPercent = .9
+batchsize_custom = 100
+epochs = 500
+
+errorrates = []
+predictions = []
+trueValues = []
+
 obj = load("embtable.jld")
 embtable = obj["embtable"]
 
-n = parse(Int64, get(parsed_args, "arg1", 0))
-
-MED_DATA = importClean()
-
-field = " Cardiovascular / Pulmonary"
-sub = filtration(MED_DATA, field)
-
 Random.seed!(n)
-train, test = TrainTestSplit(sub, 0.9)
+train, test = TrainTestSplit(SAMPLE, 0.9)
 
-#create dict for embeddings
-const get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
-const vec_length = length(embtable.embeddings[:, get_word_index["the"]])
+get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
+vec_length = length(embtable.embeddings[:, get_word_index["the"]])
 
 trainEmbs = SampleEmbeddings(train, vec_length)
 testEmbs = SampleEmbeddings(test, vec_length)
@@ -115,8 +122,6 @@ opt = Flux.Optimiser(ExpDecay(0.01, 0.9, 200, 1e-4), RADAM())
 ps = Flux.params(nn)
 loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
 
-
-#totalLoss = 0
 traceY = []
 traceY2 = []
 epochs = 500
