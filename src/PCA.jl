@@ -16,3 +16,14 @@ function PCAVecs(X,keepDims)
     return [Us, Sigs, Vts]
 
 end
+
+function PCA(X,keepDims)
+    Us = []
+    Sigs = []
+    Vts = []
+    S = svd(X, full = false)
+    U, Sig, Vt = S.U, S.S, S.Vt
+
+    return [U[:,1:keepDims], Sig[1:keepDims], Vt[1:keepDims, :]]
+
+end

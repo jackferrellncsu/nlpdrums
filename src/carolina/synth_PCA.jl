@@ -23,19 +23,22 @@ total_DTM = DataFrame(DTM')
 errors = []
 parameters,runs = [25,100]
 Errors = Matrix(undef, parameters,runs)
-
-for i in 1:runs
-    train, test = TrainTestSplit(total_DTM, .9);
+complength = 15
+for i in 1:1000
+    train, test = TrainTestSplit(data[(i-1)*1000+1:(i)*1000, :], TrainTestSplitPercent)
+    #Make training test set
     println(i)
-    Us, Sigs, Vts = PCAVecs(Matrix(train)[:, 1:end - 1], parameters)
-    for ii in 1:parameters
-        dftrain = DataFrame(hcat(Us[ii],train[:,end]))
-        z=term(Symbol(:x, ii+1)) ~ term(0) + sum(term.(Symbol.(names(dftrain[:, Not(Symbol(:x, ii+1))]))))
 
-        logit = glm(z,dftrain, Bernoulli(), LogitLink())
+    Us, Sigs, Vts = PCA(Matrix(train)[:, 1:end - 1], complength)
 
-        Errors[ii,i] = testModel(Vts[ii], Sigs[ii], logit, test)
-    end
+    dftrain = DataFrame(hcat(Us[ii],train[:,end]))
+    #Append Training Data with classifier
+
+    z=term(Symbol(:x, complength+1)) ~ term(0) + sum(term.(Symbol.(names(dftrain[:, Not(Symbol(:x, complength+1))]))))
+
+    logit = glm(z,dftrain, Bernoulli(), LogitLink())
+
+    #Report the Error
 end
 
 for i in 1:24
