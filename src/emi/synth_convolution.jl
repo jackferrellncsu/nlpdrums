@@ -1,14 +1,27 @@
-Pkg.add("Flux")
-Pkg.add("using LinearAlgebra")
-Pkg.add("using Statistics")
-Pkg.add("using ROCAnalysis")
-Pkg.add("using MLBase")
-Pkg.add("using Plots")
-Pkg.add("using RecursiveArrayTools")
-Pkg.add("TextAnalysis")
-Pkg.add("InvertedIndices")
-Pkg.add("StatsBase")
-Pkg.add("Random")
+using ArgParse
+
+function parse_commandline()
+    s = ArgParseSettings()
+
+    @add_arg_table s begin
+        "--opt1"
+            help = "an option with an argument"
+        "--opt2", "-o"
+            help = "another option with an argument"
+            arg_type = Int
+            default = 0
+        "--flag1"
+            help = "an option without argument, i.e. a flag"
+            action = :store_true
+        "arg1"
+            help = "a positional argument"
+            required = true
+    end
+
+    return parse_args(s)
+end
+
+parsed_args = parse_commandline()
 
 using Flux
 using LinearAlgebra
@@ -21,6 +34,8 @@ using TextAnalysis
 using InvertedIndices
 using StatsBase
 using Random
+using CSV
+using Lathe.preprocess: TrainTestSplit
 
 # ====================================================== #
 # ================= DTM_convolution.jl ================= #
@@ -103,10 +118,12 @@ trueValues = []
 # ====================================================== #
 # ==================== Conv For Loop =================== #
 # ====================================================== #
-for i in 1:1000
-    println("Iteration number: "*string(i))
-    bVal = 1 + ((i * 1000) - 1000)
-    eVal = 1000 * i
+n = parse(Int64, get(parsed_args, "arg1", 0 ))
+for j in ((n-1)*100+1):(n*100)
+
+    println("Iteration number: "*string(j))
+    bVal = 1 + ((j * 1000) - 1000)
+    eVal = 1000 * j
     # Imports clean data
     true_data = CSV.read("wordy.csv", DataFrame)
     true_data = true_data[bVal:eVal, :]
@@ -116,7 +133,7 @@ for i in 1:1000
     total_DTM = DataFrame(DTM')
 
 
-    Random.seed!(i)
+    Random.seed!(j)
     train, test = TrainTestSplit(total_DTM, trainTestSplitPercent)
 
 
@@ -196,7 +213,8 @@ for i in 1:1000
     println("round ",length(errorrates) , ": ", round((errorrates[end] * 100), digits = 2), "%")
     # --------------------- Plotting ---------------------
 end
+resultz = [predictions, trueValues, errorrates]
 
-JLD.save("CONVpredictions.jld", "predictions", predictions)
-JLD.save("CONVtrueValues.jld", "trueValues", trueValues)
-JLD.save("CONVerrorrates.jld", "errorrates", errorrates)
+filename = "CONVResults_" * string(n) * ".jld"
+
+JLD.save(filename, "Results", resultz)
