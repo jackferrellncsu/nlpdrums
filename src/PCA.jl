@@ -21,6 +21,7 @@ function PCA(X,keepDims)
     Us = []
     Sigs = []
     Vts = []
+    print(X)
     S = svd(X, full = false)
     U, Sig, Vt = S.U, S.S, S.Vt
 
