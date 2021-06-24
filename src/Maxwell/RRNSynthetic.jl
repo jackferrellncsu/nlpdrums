@@ -1,29 +1,13 @@
-using Pkg
-
-Pkg.add("Word2Vec")
-Pkg.add("CSV")
-Pkg.add("Lathe")
-Pkg.add("LinearAlgebra")
-Pkg.add("DataFrames")
-Pkg.add("Statistics")
-Pkg.add("Flux")
-Pkg.add("Plots")
-Pkg.add("Languages")
-Pkg.add("JLD")
-Pkg.add("Random")
 
 using Word2Vec
-using Lathe
 using DataFrames
-using Plots
 using CSV
 using Statistics
-using Languages
 using Lathe.preprocess: TrainTestSplit
 using LinearAlgebra
 using Flux
-using Tables
 using JLD
+using Languages
 using Random
 
 function formulateTextRNN(model, script, prop)
@@ -107,8 +91,6 @@ for i in 1:1000
    println("round:",length(errorrates) , " : ", errorrates[end])
 
 end
-
-rm("wordy.csv")
 
 JLD.save("RNNpredictions.jld", "predictions", predictions)
 JLD.save("RNNtrueValues.jld", "trueValues", trueValues)
