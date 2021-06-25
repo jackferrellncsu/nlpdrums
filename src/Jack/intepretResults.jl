@@ -41,7 +41,7 @@ function drawROC(R::ModelResult, studytype::String)
     worstBit = R.worstTrues .== 1.0
 
     if R.worstPreds[1] == mean(R.worstPreds)
-        R.worstPreds' .+= rand(length(R.worstPreds))
+        R.worstPreds' .+= rand(length(R.worstPreds)) / 1000
     end
     worstRocs = roc(worstBit, vec(R.worstPreds))
 
@@ -50,7 +50,7 @@ function drawROC(R::ModelResult, studytype::String)
 
     p = plot(bFpr, bTpr, label = "Best Model")
     plot!(p, wFpr, wTpr, label = "Worst Model")
-    title!(p, studytype * " Result ROC Curve")
+    title!(p, studytype * " FF GloVe ROC Curve")
     xlabel!(p, "False Positive Rate")
     ylabel!(p, "True Positive Rate")
 
