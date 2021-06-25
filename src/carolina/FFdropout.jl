@@ -1,21 +1,25 @@
 using Lathe
 using Flux
+using Word2Vec
 include("../embeddings_nn.jl")
 include("../data_cleaning.jl")
 
 #import text, sort by field, and create corpus
 text = importClean()
-sort!(text, "medical_specialty")
-createCorpusText(text, 1)
+train, test = TrainTestSplit(text, 0.9)
+sort!(train, "medical_specialty")
+createCorpusText(train, 0)
 
+pwd()
 field = " Cardiovascular / Pulmonary"
+
 word2vec("corpus.txt", "vectors.txt", size = 15, window = 20)
+rm("corpus.txt")
 
 m = wordvectors("vectors.txt", normalize = true)
 
 dataS = filtration(text, field)
 
-train, test = TrainTestSplit(dataS, 0.9)
 
 classTrain = train[:,1].== field
 classTest = test[:,1].== field
