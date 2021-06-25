@@ -1,5 +1,6 @@
 using JLD
 
+
 function jld2Results(errors, preds, trues)
     err = []
     p = []
@@ -22,7 +23,3 @@ function jld2Results(errors, preds, trues)
     t[best],
     mean(err)]
 end
-
-eb,pb,tb,ew,pw,tw,ea = jld2Results(JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/ErrorsFinal.jld"),
-            JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/PredsFinal.jld"),
-            JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/TruesFinal.jld"))
