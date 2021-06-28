@@ -29,10 +29,19 @@ p = drawROC(resultMed, "Medical Data")
 
 p2 = drawROC(resultSynth, "Synthetic Data")
 
+medMeanErr = resultMed.meanErr
+synthMeanErr = resultSynth.meanErr
+
+#Emis data#
+emiErrors = load("ErrorsFinal.jld")
+emiPreds = load("PredsFinal.jld")
+emiTrues = load("TruesFinal.jld")
 
 
 
-function drawROC(R::ModelResult, studytype::String)
+
+
+function drawROC(R::ModelResult, studytype::String, string::ModelName)
     bestBit = R.bestTrues .== 1.0
     bestRocs = roc(bestBit, vec(R.bestPreds))
 
@@ -85,6 +94,7 @@ function jld2Results_j(errors, preds, trues)
 
     best = argmin(err)
     worst = argmax(err)
+
     return ModelResult(err[best],
      p[best],
      t[best],

@@ -23,12 +23,21 @@ function jld2Results(errors, preds, trues)
     mean(err)]
 end
 
-eb,pb,tb,ew,pw,tw,ea = jld2Results(JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/ErrorsFinal.jld"),
-            JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/PredsFinal.jld"),
-            JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/TruesFinal.jld"))
+#Emis data#
+emiErrors = load("ErrorsFinal.jld")
+emiPreds = load("PredsFinal.jld")
+emiTrues = load("TruesFinal.jld")
+
+
+pwd
+emi_realErrors = load("ErrorsFinalREAL_.jld")
+emi_realPreds = load("PredsFinalREAL_.jld")
+emi_realTrues = load("TruesFinalREAL_.jld")
+
+eb,pb,tb,ew,pw,tw,ea = jld2Results(emi_realErrors, emi_realPreds, emi_realTrues)
 
 # Printing an ROC curve for word2vec
-pw .+= rand(length(pw))/1000000
+
 best_p = convert(Vector{Float64}, pb)
 worst_p = convert(Vector{Float64}, pw)
 rocnums1 = MLBase.roc((tb .== 1), best_p)
@@ -42,12 +51,6 @@ emiFPR_best = false_positive_rate.(rocnums1)
 
 Plots.plot(emiFPR_best, emiTPR_best, label = "Best Model")
 Plots.plot!(emiFPR_worst,emiTPR_worst, label = "Worst Model")
-Plots.title!("ROC Curve, Convolutional Layers with Synthetic Data")
+Plots.title!("ROC Curve, Convolutional Layers with Real Data")
 xlabel!("False Positive Rate")
 ylabel!("True Positive Rate")
-
-
-x= rand(10)
-y = x.*rand(10)
-
-plot(x, y)

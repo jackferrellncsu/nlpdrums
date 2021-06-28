@@ -86,7 +86,7 @@ for i in 1:B
 
 end
 
-
+mean(errors)
 best = argmin(errors)
 worst = argmax(errors)
 
