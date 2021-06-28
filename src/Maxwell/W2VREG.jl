@@ -34,6 +34,7 @@ using Lathe.preprocess: TrainTestSplit
 using LinearAlgebra
 using JLD
 using Random
+using Flux
 
 vecLength1 = 15
 vecLength2 = 0
@@ -101,60 +102,110 @@ function formulateText(model, script)
    return vecs
 end
 
-field = " Cardiovascular / Pulmonary"
-n = parse(Int64, get(parsed_args, "arg1", 0 ))
-Random.seed!(n)
-D = CSV.read("/Users/mlovig/Documents/GitHub/nlpdrums/src/cleanedData.csv", DataFrame)
-Random.seed!(n)
-train, test = TrainTestSplit(D, .9);
+JLD.save("PredsFinal.jld", "run0", 0)
+JLD.save("TruesFinal.jld", "run0", 0)
+JLD.save("ErrorsFinal.jld", "run0", 0)
+for n in 1:50
+   println("----------------" , n)
+   field = " Cardiovascular / Pulmonary"
+   Random.seed!(n)
+   D = CSV.read("/Users/mlovig/Documents/GitHub/nlpdrums/src/cleanedData.csv", DataFrame)
+   Random.seed!(n)
+   train, test = TrainTestSplit(D, .9);
 
-Random.seed!(n)
-data = filtration(train, " Cardiovascular / Pulmonary")
-createCorpusText(train,0)
+   Random.seed!(n)
+   data = filtration(train, " Cardiovascular / Pulmonary")
+   createCorpusText(train,0)
 
-#defining the lengths of the syntanctic or topical embeddings
-vecLength1 = 15
+   #defining the lengths of the syntanctic or topical embeddings
+   vecLength1 = 15
 
-#Defining the window sizes
-window1 = 50
+   #Defining the window sizes
+   window1 = 50
 
-#Creating the syntactic vector
-word2vec("corpus.txt", "vectors.txt", size = vecLength1, verbose = true, window = window1, negative = 10, min_count = 0)
-   M = wordvectors("vectors.txt", normalize = true)
+   #Creating the syntactic vector
+   word2vec("corpus.txt", "vectors.txt", size = vecLength1, verbose = true, window = window1, negative = 10, min_count = 0)
+      M = wordvectors("vectors.txt", normalize = true)
 
-   rm("vectors.txt")
-   #creting the topical vectors
+      rm("vectors.txt")
+      #creting the topical vectors
 
-rm("corpus.txt")
+   rm("corpus.txt")
 
-vecs = zeros(size(data)[1],vecLength1)
-for i in 1:size(data)[1]
-    vecs[i,:] = formulateText(M,data[i,1])
+   vecs = zeros(size(data)[1],vecLength1)
+   for i in 1:size(data)[1]
+       vecs[i,:] = formulateText(M,data[i,1])
+   end
+
+   classtest = test[:,1] .== field
+   ii = vecLength1 + vecLength2
+   vecstest = Matrix{Float64}(undef,length(classtest),ii)
+   for i in 1:length(classtest)
+      vecstest[i,:] = formulateText(M,test[i,1])
+   end
+
+   classtest = test[:,1] .== field
+   class = data[:,1] .== field
+
+   function neural_net()
+       nn = Dense(15, 1, x->σ.(x))
+       return nn
+   end
+
+   # Makes "DataLoader" classes for both testing and training data
+   # Batchsize for training shoulde be < ~size(train). Way less
+   newTestData = Flux.Data.DataLoader((vecstest', classtest'))
+   newTrainingData = Flux.Data.DataLoader((vecs', class'), shuffle = true, batchsize = 100)
+
+   # Defining our model, optimization algorithm and loss function
+   # @function Descent - gradient descent optimiser with learning rate η
+   nn = neural_net()
+   opt = RADAM()
+   ps = Flux.params(nn)
+   loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
+
+   # Actual training
+   traceY = []
+   traceY2 = []
+   epochs = 500
+       for i in 1:epochs
+           Flux.train!(loss, ps, newTrainingData, opt)
+
+            println(i)
+           #=
+           for (x,y) in trainDL
+               totalLoss = loss(x,y)
+           end
+           push!(traceY, totalLoss)
+           =#
+           # acc = 0
+           # for (x,y) in testDL
+           #     acc += sum((nn(x) .> .5) .== y)
+           # end
+           # decimalError = 1 - acc/length(classVal)
+           # percentError = decimalError * 100
+           # percentError = round(percentError, digits=2)
+           # push!(traceY2, percentError)
+       end
+
+   acc = 0
+   preds = []
+   trues = []
+       for (x,y) in newTestData
+           push!(preds, nn(x)[1])
+           push!(trues,y[1])
+       end
+
+   errors = 1 - sum((preds .> .5) .== trues)/length(trues)
+
+    jldopen("PredsFinal.jld", "r+") do file
+         write(file, "run"*string(n), preds)  # alternatively, say "@write file A"
+    end
+    jldopen("TruesFinal.jld", "r+") do file
+         write(file, "run"*string(n), trues)  # alternatively, say "@write file A"
+    end
+    jldopen("ErrorsFinal.jld", "r+") do file
+         write(file,"run"*string(n), errors)  # alternatively, say "@write file A"
+    end
+
 end
-
-df = DataFrame(hcat(vecs,data[:,2]))
-
-ii = vecLength1
-z=term(Symbol(:x, ii+1)) ~ sum(term.(Symbol.(names(df[:, Not(Symbol(:x, ii+1))]))))
-logit = glm(z,df, Bernoulli(), LogitLink())
-
-classtest = test[:,2]
-vecstest = Matrix{Float64}(undef,length(classtest),ii)
-for i in 1:length(classtest)
-   vecstest[i,:] = formulateText(M,test[i,1])
-end
-
-       #Calculating Error Rate
-artest = hcat(vecstest)
-
-dftest = DataFrame(artest)
-
-preds = GLM.predict(logit,dftest)
-
-rez = preds.>.5
-
-errors = 1 - sum(rez .== classtest)/length(rez)
-
-JLD.save("Preds" * string(n) * ".jld", "val", preds)
-JLD.save("Trues" * string(n) * ".jld", "val", classtest)
-JLD.save("Errors" *string(n) * ".jld", "val", errors)
