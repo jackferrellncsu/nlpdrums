@@ -1,6 +1,7 @@
 using StatsBase
 using DataFrames
 using CSV
+using Random
 include("../data_cleaning.jl")
 
 field = " Cardiovascular / Pulmonary"
@@ -49,19 +50,19 @@ for i in 1:length(valsFalse)
         valsFalseCDF[i] = sum(valsFalse[1:i])
 end
 
-samples = 1000000
 len = 100
 mat = []
 class = []
-for i in 1:Int(samples/2)
+for i in 1:1000
     println(i)
-    push!(mat,multinomialData(valsTrueCDF,len, words))
-    push!(class,1)
-end
-for i in Int(samples/2)+1:samples
-    println(i)
-    push!(mat,multinomialData(valsFalseCDF,len, words))
-    push!(class,0)
+    for ii in 1:500
+        push!(mat,multinomialData(valsTrueCDF,len, words))
+        push!(class,1)
+    end
+    for ii in 1:500
+        push!(mat,multinomialData(valsFalseCDF,len, words))
+        push!(class,0)
+    end
 end
 
 df = DataFrame(hcat(mat,class))

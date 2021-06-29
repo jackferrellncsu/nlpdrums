@@ -29,6 +29,38 @@ using Statistics
 using ROCAnalysis
 using MLBase
 using Plots
+using Word2Vec
+using DataFrames
+using GLM
+using StatsBase
+using CSV
+using Languages
+using Lathe.preprocess: TrainTestSplit
+using LinearAlgebra
+using JLD
+using Random
+
+function importClean()
+    filename = "/Users/mlovig/Documents/GitHub/nlpdrums/src/cleanedData.csv"
+    filepath = joinpath(@__DIR__, filename)
+    arr = CSV.read(filename, DataFrame)
+
+    return arr
+end
+
+function filtration(df, field)
+   indexes = []
+   for i in 1:length(df[:,1])
+      if df[i,1] == field
+         push!(indexes,i)
+      else
+         if rand() < sum(df[:,1].==field)/(length(df[:,1]) - sum(df[:,1].==field))
+            push!(indexes,i)
+         end
+      end
+   end
+   return df[indexes,:]
+end
 
 function formulateText(model, script)
    words = split(script, " ")
@@ -45,34 +77,52 @@ end
 # --------------------- Variables To Change ---------------------
 # ---------------------------------------------------------------
 
-# Vector length for embeddings (Max 50), represents initial # of input nodes
-# Window size (the smaller, the more syntactic; the larger, the more topical)
-# Could add more than one set of embeddings, see "Word2VecReg.jl"
-M = wordvectors("vectors1.txt", normalize = false)
-
-M2 = wordvectors("vectors2.txt", normalize = false)
-# Have to manually change the number of nodes in the nn layers
-# in neural_network function
-
-
 # ---------------- Start Running Here For New Data Set ----------------
 
 # Filtering new data and splitting train/test
+field = " Cardiovascular / Pulmonary"
 n = parse(Int64, get(parsed_args, "arg1", 0 ))
-datatot = CSV.read("JonsData.csv", DataFrame)[(n-1)*1000+1:n*1000,:]
+n=10
 Random.seed!(n)
-data, test = TrainTestSplit(datatot, .9);
+D = importClean()
+Random.seed!(n)
+train, test = TrainTestSplit(D, .9);
+
+Random.seed!(n)
+createCorpusText(train,2)
+
+#defining the lengths of the syntanctic or topical embeddings
+vecLength1 = 25
+vecLength2 = 25
+
+#Defining the window sizes
+window1 = 10
+window2 = 300
+
+#Creating the syntactic vector
+word2vec("corpus.txt", "vectors.txt", size = vecLength1, verbose = true, window = window1, negative = 10, min_count = 0)
+   M = wordvectors("vectors.txt", normalize = true)
+
+   rm("vectors.txt")
+word2vec("corpus.txt", "vectors.txt", size = vecLength2, verbose = true, window = window2, negative = 10, min_count = 0)
+      M2 = wordvectors("vectors.txt", normalize = true)
+
+      rm("vectors.txt")
+
+   #creting the topical vectors
+
+rm("corpus.txt")
 
 vecsTrain = zeros(size(data)[1],vecLength1 + vecLength2)
 for i in 1:size(data)[1]
-         vecsTrain[i,:] = vcat(formulateText(M,data[i,1]),formulateText(M2,data[i,1]))
+         vecsTrain[i,:] = vcat(formulateText(M,data[i,3]),formulateText(M2,data[i,3]))
 end
 vecsTest = zeros(size(test)[1],vecLength1 + vecLength2)
 for i in 1:size(test)[1]
-         vecsTest[i,:] = vcat(formulateText(M,test[i,1]),formulateText(M2,test[i,1]))
+         vecsTest[i,:] = vcat(formulateText(M,test[i,3]),formulateText(M2,test[i,3]))
 end
-class = data[:,2]
-classTest = test[:,2]
+class = data[:,2] .== field
+classTest = test[:,2] .== field
 # creating the matrix to run through nn
 train_mat = vecsTrain'
 test_mat = vecsTest'
@@ -140,9 +190,9 @@ trues = []
 
 errors = 1 - sum((preds .> .5) .== trues)/length(classTest)
 
-save("Preds" * string(n) * ".jld", "val", preds)
-save("Trues" * string(n) * ".jld", "val", classtest)
-save("Errors" *string(n) * ".jld", "val", errors)
+JLD.save("Preds" * string(n) * ".jld", "val", preds)
+JLD.save("Trues" * string(n) * ".jld", "val", classtest)
+JLD.save("Errors" *string(n) * ".jld", "val", errors)
 
 # ---------------------------------------------------------------
 # ------------------------ Visualization ------------------------

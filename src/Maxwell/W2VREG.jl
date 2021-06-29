@@ -148,7 +148,10 @@ for n in 1:50
    class = data[:,1] .== field
 
    function neural_net()
-       nn = Dense(15, 1, x->σ.(x))
+      nn = Chain(
+           Dense(15, 30, swish),Dense(30, 10, swish),
+           Dense(10, 1, x->σ.(x))
+           )
        return nn
    end
 

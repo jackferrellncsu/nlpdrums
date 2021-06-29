@@ -1,6 +1,7 @@
 using JLD
 using ROCAnalysis
 using MLBase
+using Plots
 
 function jld2Results(errors, preds, trues)
     err = []
@@ -43,13 +44,14 @@ for i in 1:length(rocWorst)
     push!(TP,rocWorst[i].tp/rocWorst[i].p)
     push!(FP,rocWorst[i].fp/rocWorst[i].n)
 end
-
+push!(TP,0.0)
+push!(FP,0.0)
 
 Plots.plot!(FP,TP, label = "Worst Model")
 
 xlabel!("False Positive Rate")
 ylabel!("True Positive Rate")
-Plots.title!("PCA Logistic Regression")
+Plots.title!("Varied Window Length Neural Net")
 
 xaxis!([0,1])
 yaxis!([0,1])
