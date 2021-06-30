@@ -8,4 +8,4 @@
 
 module load julia
 setenv JULIA_DEPOT_PATH /usr/local/usrapps/hmmrs/mlovig/julia
-julia glove_synth_cluster.jl $LSB_JOBINDEX
+julia glove_synth_cluster_cv.jl $LSB_JOBINDEX
