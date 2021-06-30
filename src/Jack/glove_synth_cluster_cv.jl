@@ -64,24 +64,19 @@ end
 
 n = parse(Int64, get(parsed_args, "arg1", 0 ))
 
-n = 1000
-seed = n % 10
-lower = Int(ceil(n/100)-1)*100000 + 1
-upper = Int(ceil(n/100))*100000
-param = Int(ceil(n/250))
 
+param = Int(ceil(n / 250))
+
+seed = n % 100
 Random.seed!(seed)
-SAMPLE = CSV.read("JonsData.csv", DataFrame)
+SAMPLE = CSV.read("JonsTraining.csv", DataFrame)
 
-SAMPLE = SAMPLE[lower:upper, :]
+
 
 trainTestSplitPercent = .9
 batchsize_custom = 100
 epochs = 1000
 
-errorrates = []
-predictions = []
-trueValues = []
 
 obj = load("embtable.jld")
 
@@ -109,12 +104,13 @@ trainDL = Flux.Data.DataLoader((trainEmbs, classTrain'),
                                 shuffle = true)
 testDL = Flux.Data.DataLoader((testEmbs, classTest'))
 
-reduc1 = Int(ceil(vec_length*0.66))
-reduc2 = Int(ceil(reduc1*0.66))
-nn = Chain(Dense(vec_length, 198, mish),
-            Dense(198, 130, mish),
-            Dense(130, 65, mish),
-            Dense(65, 10, mish),
+reduc1 = Int(floor(vec_length*0.66))
+reduc2 = Int(floor(reduc1*0.66))
+reduc3 = Int(floor(reduc2*0.5))
+nn = Chain(Dense(vec_length, reduc1, mish),
+            Dense(reduc1, reduc2, mish),
+            Dense(reduc2, reduc3, mish),
+            Dense(reduc3, 10, mish),
             Dense(10, 1, x->Flux.σ.(x)))
 
 opt = Flux.Optimiser(ExpDecay(0.01, 0.9, 200, 1e-4), RADAM())
@@ -123,7 +119,7 @@ loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
 
 traceY = []
 traceY2 = []
-epochs = 1000
+epochs = 500
     for i in 1:epochs
         print(i)
         Flux.train!(loss, ps, trainDL, opt)
@@ -153,4 +149,4 @@ preds = (nn(testEmbs))
 trues = classTest
 errors = 1 - acc/length(classTest)
 
-save("Errors" * string(param) * ".jld", "val", errors)
+save("Errors" * string(param) * "_" * string(seed) * ".jld", "val", errors)
