@@ -57,10 +57,22 @@ function cleanData()
 end
 
 
-function importClean()
-    filename = "cleanedData.csv"
-    filepath = joinpath(@__DIR__, filename)
-    arr = CSV.read(filepath, DataFrame)
+function importClean(type::String = "full")
+    if type == "train"
+        filename = "cleanedTrain.csv"
+        filepath = joinpath(@__DIR__, filename)
+        arr = CSV.read(filepath, DataFrame)
+    elseif type == "test"
+        filename = "cleanedTest.csv"
+        filepath = joinpath(@__DIR__, filename)
+        arr = CSV.read(filepath, DataFrame)
+    elseif type == "full"
+        filename = "cleanedData.csv"
+        filepath = joinpath(@__DIR__, filename)
+        arr = CSV.read(filepath, DataFrame)
+    else
+        throw(ArgumentError("Enter train, test, or full"))
+    end
 
     return arr
 end

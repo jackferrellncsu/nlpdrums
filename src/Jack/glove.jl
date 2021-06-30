@@ -18,12 +18,23 @@ trainVal, test = TrainTestSplit(sub, 0.9)
 
 #train, validate = TrainTestSplit(trainVal, 0.9)
 
-#Load embeddings
+#Load embeddings - 6B/200D
 embtable = load_embeddings(GloVe{:en}, 3, max_vocab_size = 50000)
-save("src/Jack/embtable.jld", "embtable", embtable)
+#6B/300D
+embtable2 = load_embeddings(GloVe{:en}, 4, max_vocab_size = 50000)
+#42B/300D
+embtable3 = load_embeddings(GloVe{:en}, 5, max_vocab_size = 50000)
+#840B/300D
+embtable4 = load_embeddings(GloVe{:en}, 6, max_vocab_size = 50000)
 
-t = load("src/Jack/embtable.jld")
-t["emtable"]
+jldopen("embtable.jld", "w") do file
+    write(file, "embtable1", embtable)
+    write(file, "embtable2", embtable2)
+    write(file, "embtable3", embtable3)
+    write(file, "embtable4", embtable4)
+end
+t = load("embtable.jld")
+t["embtable"]
 #create dict for embeddings
 const get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
 const vec_length = length(embtable.embeddings[:, get_word_index["the"]])
@@ -61,6 +72,7 @@ nn = Chain(Dense(200, 150, mish),
 opt = Flux.Optimiser(ExpDecay(0.01, 0.9, 200, 1e-4), RADAM())
 ps = Flux.params(nn)
 loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
+
 
 totalLoss = []
 traceY = []
