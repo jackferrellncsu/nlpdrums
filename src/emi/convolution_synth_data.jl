@@ -32,6 +32,7 @@ using Plots
 using RecursiveArrayTools
 using TextAnalysis
 using InvertedIndices
+using JLD
 using StatsBase
 using Random
 using CSV
@@ -108,7 +109,6 @@ end
 # ====================================================== #
 trainTestSplitPercent = .9
 batchsize_custom = 100
-η = 0.01
 epochs = 1000
 
 errorrates = []
@@ -190,7 +190,7 @@ for j in ((n-1)*100+1):(n*100)
                                         batchsize = batchsize_custom, shuffle = true)
 
     nn = neural_net()
-    opt = Descent(η)
+    opt = RADAM()
     loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
 
 
@@ -198,7 +198,6 @@ for j in ((n-1)*100+1):(n*100)
     ps = Flux.params(nn)
         for i in 1:epochs
             Flux.train!(loss, ps, dl_train, opt)
-            println(i)
         end
 
     # Testing for accuracy (at the end)
@@ -218,3 +217,28 @@ resultz = [predictions, trueValues, errorrates]
 filename = "CONVResults_" * string(n) * ".jld"
 
 JLD.save(filename, "Results", resultz)
+
+# Reading the file(s)
+a = JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/ErrorsFinalREAL.jld")
+c = []
+tot_c = 0
+d = []
+for i in 1:1000
+    b = get(a, "run"*string(i), 0)
+    push!(c, b)
+    d = c[i]
+    tot_c += d[1]
+end
+
+aver
+for i in 1:1000
+    b = get(a, "run"*string(i), 0)
+    push!(c, b)
+end
+
+
+- list what model does
+- list results
+    - roc curve ()
+    - average testing error rate
+    - figures

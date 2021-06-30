@@ -5,6 +5,7 @@ using ROCAnalysis
 using MLBase
 using Plots
 using RecursiveArrayTools
+using GR
 
 include("../embeddings_nn.jl")
 include("../data_cleaning.jl")
@@ -69,7 +70,7 @@ end
 # Neural net architecture
 function neural_net()
     nn = Chain(
-        Dense(227, 150, relu),
+        Dense(229, 150, relu),
         Dense(150, 75, relu),
         Dense(75, 40, relu),
         Dense(40, 15, relu),
