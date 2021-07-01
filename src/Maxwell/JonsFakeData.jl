@@ -50,7 +50,7 @@ for i in 1:length(valsFalse)
         valsFalseCDF[i] = sum(valsFalse[1:i])
 end
 
-len = 100
+len = 1000
 mat = []
 class = []
 for i in 1:1000

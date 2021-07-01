@@ -15,14 +15,10 @@ function findNearest(model, vec, n)
     end
     for i in 1:n
         ind = argmax(close)
-        push!(closewords, Word2Vec.vocabulary(model)[i])
+        push!(closewords, Word2Vec.vocabulary(model)[ind])
         close[ind] = -1
     end
     return closewords
-end
-
-corp = open("/Users/mlovig/Downloads/text8") do file
-    read(file, String)
 end
 
 Word2Vec.word2vec("/Users/mlovig/Downloads/text8", "text8Vectors.txt", size = 50, min_count = 0)
@@ -34,48 +30,60 @@ NextWords = []
 #Forumulting scripts into vector form
 countGoods = 0
 countBads = 0
-for i in 1:length(splittedWord)-1
+for i in 1:length(splittedWord)-5
     println(i/length(splittedWord))
-    if string(splittedWord[i]) in Word2Vec.vocabulary(M)
+    if string(splittedWord[i]) in Word2Vec.vocabulary(M) &&
+        string(splittedWord[i+1]) in Word2Vec.vocabulary(M) &&
+        string(splittedWord[i+2]) in Word2Vec.vocabulary(M) &&
+        string(splittedWord[i+3]) in Word2Vec.vocabulary(M) &&
+        string(splittedWord[i+4]) in Word2Vec.vocabulary(M) &&
+        string(splittedWord[i+5]) in Word2Vec.vocabulary(M)
         specWord = string(splittedWord[i])
-        nextWord = string(splittedWord[i+1])
-        if specWord ∉ stopwords(Languages.English())
-            push!(CurrWords,
-            convert(Vector{Float32},Word2Vec.get_vector(M,specWord)))
-            push!(NextWords,
-            convert(Vector{Float32},Word2Vec.get_vector(M,nextWord)))
-            countGoods += 1
-        elseif rand() < 1
-            push!(CurrWords,
-            convert(Vector{Float32},Word2Vec.get_vector(M,specWord)))
-            push!(NextWords,
-            convert(Vector{Float32},Word2Vec.get_vector(M,nextWord)))
-            countBads += 1
-        end
+        specWord1 = string(splittedWord[i+1])
+        specWord2 = string(splittedWord[i+2])
+        specWord3 = string(splittedWord[i+3])
+        specWord4 = string(splittedWord[i+4])
+        nextWord = string(splittedWord[i+5])
+
+        wordvec = convert(Vector{Float32},Word2Vec.get_vector(M,specWord))
+        append!(wordvec, convert(Vector{Float32},Word2Vec.get_vector(M,specWord1)))
+        append!(wordvec, convert(Vector{Float32},Word2Vec.get_vector(M,specWord2)))
+        append!(wordvec, convert(Vector{Float32},Word2Vec.get_vector(M,specWord3)))
+        append!(wordvec, convert(Vector{Float32},Word2Vec.get_vector(M,specWord4)))
+        push!(CurrWords, wordvec)
+        push!(NextWords,
+        convert(Vector{Float32},Word2Vec.get_vector(M,nextWord)))
     end
 end
 
 
 #Training Nueral Net
-nn = Chain(Flux.GRU(50,50),Dense(50,100,swish),Dense(100,150,swish),Dense(150,100,swish),Dense(100,50,swish),Dense(50,50, x->x))
+nn = Chain(Flux.GRU(250,300),
+    Dense(300,300,swish),
+    Dense(300,300,swish),
+    Dense(300,50, x->x)
+    )
 opt = RADAM()
 ps = Flux.params(nn)
 
+function vecCosine(a,b)
+    return dot(a,b)/(norm(a)*norm(b))
+end
+
 function loss(x, y)
-      return norm(nn(x)-y)
+      rez = nn(x)
+      return abs(vecCosine(nn(x),y)))
 end
 
-
-for i in 1:2000
+for i in 1:1000
     println(i)
-    start = (i*2000)%(length(CurrWords)-2000)
-    Flux.reset!(nn)
-    Flux.train!(loss, ps, zip(CurrWords[start:start + 2000], NextWords[start:start + 2000]), opt)
+    start = (i*1000)%(length(CurrWords)-1000)
+    Flux.train!(loss, ps, zip(CurrWords[start:start + 1000], NextWords[start:start + 1000]), opt)
 end
 
-using BSON: @save
+using BSON
 
-@save "mymodel.bson" nn
+BSON.@save "mymodel.bson" nn
 
 
 

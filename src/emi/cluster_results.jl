@@ -51,7 +51,7 @@ ylabel!("True Positive Rate")
 
 # CROSS VALIDATION ANALYSIS #
 
-raw_matrix = JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/cv_error_matrix.jld")
+raw_matrix = JLD.load("/Users/mlovig/Documents/GitHub/nlpdrums/src/emi/cv_error_matrix.jld")
 error_matrix = get(raw_matrix, "error_mat", 0)
 error_matrix = error_matrix * 100
 
@@ -74,13 +74,21 @@ for i in 1:length(error_matrix[1, :])
 end
 argmin(avg_vals)
 
+
+data = hcat(avg_vals[1:6], avg_vals[7:12], avg_vals[13:18], avg_vals[19:24], avg_vals[25:30], avg_vals[31:36])
+heatmap([5,10,15,20,25,30],
+    [200,300,400,500,600,700], data,
+    c=:algae,
+    xlabel="Convolution Filter Size", ylabel="Pooling Filter Size", title = "Cross-Validation for CNN",
+    colorbar_title = "Percent Error")
+
 x = 1:36
 y = avg_vals
-Plots.plot!(x,y, title = "Average Error for Combinations", lw = 2)
+Plots.plot(x,y, title = "Average Error for Combinations", lw = 2, label = "Average Value")
 
 x = 1:36
 y = min_vals
-Plots.plot!(x,y, title = "Minimum Error for Combinations", lw = 2)
+Plots.plot!(x,y, title = "Minimum Error for Combinations", lw = 2, label = "Minimum Value")
 
 
 
