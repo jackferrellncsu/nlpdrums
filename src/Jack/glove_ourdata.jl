@@ -7,8 +7,9 @@ using Plots
 using JLD
 using Random
 
-include("data_cleaning.jl")
-include("embeddings_nn.jl")
+Random.seed!(13)
+include("../data_cleaning.jl")
+include("../embeddings_nn.jl")
 
 function SampleEmbeddings(df, vec_size)
     embed = 0
@@ -36,7 +37,7 @@ function getEmbedding(word)
     return emb
 end
 
-trainTestSplitPercent = .9
+trainTestSplitPercent = .7
 batchsize_custom = 100
 epochs = 500
 
@@ -45,8 +46,8 @@ predictions = []
 trueValues = []
 
 
-obj = load("embtable.jld")
-embtable = obj["embtable"]
+
+embtable = load("embtable.jld", "embtable3")
 
 n = parse(Int64, get(parsed_args, "arg1", 0))
 
