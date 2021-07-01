@@ -1,6 +1,7 @@
 using JLD
 using MLBase
 using Plots
+using Statistics
 
 
 struct ModelResult
@@ -32,13 +33,20 @@ p2 = drawROC(resultSynth, "Synthetic Data")
 medMeanErr = resultMed.meanErr
 synthMeanErr = resultSynth.meanErr
 
-#Emis data#
-emiErrors = load("ErrorsFinal.jld")
-emiPreds = load("PredsFinal.jld")
-emiTrues = load("TruesFinal.jld")
 
+#Results of CV for which glove vectors to use
+obj = load("ErrorsFinal_cv.jld")
+error_mat = obj["error_mat"]
 
+avg_errs = mean(error_mat, dims = 1)
 
+#Option 3 (300d/42B) was the best
+x = ["200D/6B", "300D/6B", "300D/42B", "300D/840B"]
+plot(x, vec(avg_errs), label = "Average Validation Error")
+title!("Cross Validating GloVe Embeddings Types")
+ylabel!("Validation Error")
+xlabel!("GloVe Embeddings Used (Embedding Dimension/Training Corpus Size)")
+png("CrossVal_Plot.png")
 
 
 function drawROC(R::ModelResult, studytype::String, string::ModelName)

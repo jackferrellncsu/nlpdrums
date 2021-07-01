@@ -1,46 +1,20 @@
-using ArgParse
-
-function parse_commandline()
-    s = ArgParseSettings()
-
-    @add_arg_table s begin
-        "--opt1"
-            help = "an option with an argument"
-        "--opt2", "-o"
-            help = "another option with an argument"
-            arg_type = Int
-            default = 0
-        "--flag1"
-            help = "an option without argument, i.e. a flag"
-            action = :store_true
-        "arg1"
-            help = "a positional argument"
-            required = true
-    end
-
-    return parse_args(s)
-end
-
-parsed_args = parse_commandline()
-
 using Glowe
-using Lathe.preprocess: TrainTestSplit
+using Lathe
 using Embeddings
 using LinearAlgebra
 using Flux
 using Plots
 using JLD
 using Random
-using CSV
-using DataFrames
 
-
+include("data_cleaning.jl")
+include("embeddings_nn.jl")
 
 function SampleEmbeddings(df, vec_size)
     embed = 0
     embed_mat = Matrix{Float64}(I, vec_size, length(eachrow(df)))
     for (i, r) in enumerate(eachrow(df))
-        doc = split(r[1])
+        doc = split(r[3])
         embed = getEmbedding(doc[1])
         for d in doc[2:end]
             embed += getEmbedding(d)
@@ -62,14 +36,6 @@ function getEmbedding(word)
     return emb
 end
 
-n = parse(Int64, get(parsed_args, "arg1", 0 ))
-
-lower  = (n-1)*1000 + 1
-upper = n*1000
-SAMPLE = CSV.read("JonsData.csv", DataFrame)
-
-SAMPLE = SAMPLE[1:1000, :]
-
 trainTestSplitPercent = .9
 batchsize_custom = 100
 epochs = 500
@@ -78,24 +44,33 @@ errorrates = []
 predictions = []
 trueValues = []
 
+
 obj = load("embtable.jld")
 embtable = obj["embtable"]
 
-Random.seed!(n)
-train, test = TrainTestSplit(SAMPLE, 0.9)
+n = parse(Int64, get(parsed_args, "arg1", 0))
 
-get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
-vec_length = length(embtable.embeddings[:, get_word_index["the"]])
+MED_DATA = importClean()
+
+field = " Cardiovascular / Pulmonary"
+sub = filtration(MED_DATA, field)
+
+Random.seed!(n)
+train, test = TrainTestSplit(sub, 0.9)
+
+#create dict for embeddings
+const get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
+const vec_length = length(embtable.embeddings[:, get_word_index["the"]])
 
 trainEmbs = SampleEmbeddings(train, vec_length)
 testEmbs = SampleEmbeddings(test, vec_length)
 
 #Get classifications for train/val/test
-classTrain = train[:, 2]
+classTrain = train[:, 1] .== field
+classTrain = classTrain * 1.0
 
-
-classTest = test[:, 2]
-
+classTest = test[:, 1] .== field
+classTest = classTest * 1.0
 
 batchsize_custom = 100
 
@@ -116,9 +91,11 @@ opt = Flux.Optimiser(ExpDecay(0.01, 0.9, 200, 1e-4), RADAM())
 ps = Flux.params(nn)
 loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
 
+
+#totalLoss = 0
 traceY = []
 traceY2 = []
-epochs = 500
+epochs = 1000
     for i in 1:epochs
         Flux.train!(loss, ps, trainDL, opt)
         if i % 100 == 0

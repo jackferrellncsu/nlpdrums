@@ -64,9 +64,10 @@ end
 
 n = parse(Int64, get(parsed_args, "arg1", 0 ))
 
+n = 101
 
 
-param = Int(ceil(n / 250))
+param = Int(ceil(n / 100))
 
 seed = n % 100
 Random.seed!(seed)
@@ -120,13 +121,14 @@ loss(x, y) = sum(Flux.Losses.binarycrossentropy(nn(x), y))
 
 traceY = []
 traceY2 = []
-epochs = 500
+epochs = 200
     for i in 1:epochs
         print(i)
         Flux.train!(loss, ps, trainDL, opt)
         if i % 100 == 0
             println(i)
         end
+        # totalLoss = 0
         # for (x,y) in trainDL
         #     totalLoss = loss(x,y)
         # end
@@ -146,8 +148,9 @@ acc = 0
         global acc += sum((nn(x) .> .5) .== y)
     end
 
-preds = (nn(testEmbs))
-trues = classTest
+#preds = (nn(testEmbs))
+#trues = classTest
 errors = 1 - acc/length(classTest)
+
 
 save("Errors" * string(param) * "_" * string(seed) * ".jld", "val", errors)
