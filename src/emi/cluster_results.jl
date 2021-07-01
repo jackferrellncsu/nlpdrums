@@ -48,3 +48,42 @@ Plots.plot!(emiFPR_worst,emiTPR_worst, label = "Worst Model")
 Plots.title!("ROC Curve, Convolutional Layers with Synthetic Data")
 xlabel!("False Positive Rate")
 ylabel!("True Positive Rate")
+
+# CROSS VALIDATION ANALYSIS #
+
+raw_matrix = JLD.load("/Users/eplanch/Documents/GitHub/nlpdrums/src/emi/cv_error_matrix.jld")
+error_matrix = get(raw_matrix, "error_mat", 0)
+error_matrix = error_matrix * 100
+
+# Gets minimum value
+min_vals = []
+for i in 1:length(error_matrix[1, :])
+    col_vec = error_matrix[:, i]
+    min_val = minimum(col_vec)
+    push!(min_vals, min_val)
+end
+argmin(min_vals)
+
+# Gets average values
+avg_vals = []
+for i in 1:length(error_matrix[1, :])
+    col_vec = error_matrix[:, i]
+    sum_col = sum(col_vec)
+    avg_col = sum_col / 100
+    push!(avg_vals, avg_col)
+end
+argmin(avg_vals)
+
+x = 1:36
+y = avg_vals
+Plots.plot!(x,y, title = "Average Error for Combinations", lw = 2)
+
+x = 1:36
+y = min_vals
+Plots.plot!(x,y, title = "Minimum Error for Combinations", lw = 2)
+
+
+
+Pkg.update()
+ENV["GRDIR"]=""
+Pkg.build("GR")

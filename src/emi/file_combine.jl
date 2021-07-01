@@ -1,22 +1,16 @@
 using JLD
 
-JLD.save("PredsFinalREAL_.jld", "run0", 0)
-JLD.save("TruesFinalREAL_.jld", "run0", 0)
-JLD.save("ErrorsFinalREAL_.jld", "run0", 0)
-
-for i in 1:50
-    if isfile("Preds" *string(i)* ".jld")
-        jldopen("PredsFinalREAL_.jld", "r+") do file
-            write(file, "run"*string(i), JLD.load("Preds" *string(i)* ".jld", "val"))  # alternatively, say "@write file A"
-        end
-        jldopen("TruesFinalREAL_.jld", "r+") do file
-            write(file, "run"*string(i), JLD.load("Trues" *string(i)* ".jld", "val"))  # alternatively, say "@write file A"
-        end
-        jldopen("ErrorsFinalREAL_.jld", "r+") do file
-            write(file, "run"*string(i), JLD.load("Errors" *string(i)* ".jld", "val"))  # alternatively, say "@write file A"
-        end
-        rm("Preds" *string(i)* ".jld")
-        rm("Trues" *string(i)* ".jld")
-        rm("Errors" *string(i)* ".jld")
+error_mat = zeros(100, 36)
+error_value = 0.0
+for i in 1:3600
+    print("cv_errors" * string(i) * ".jld")
+    if isfile("cv_errors" * string(i) * ".jld")
+        obj = load("cv_errors" * string(i) * ".jld")
+        global error_value = obj["val"][1]
     end
+    row_num = Int((i % 100) + 1)
+    col_num = Int(ceil(i/100))
+    error_mat[row_num, col_num] = error_value
 end
+
+save("cv_error_matrix.jld", "error_mat", error_mat)

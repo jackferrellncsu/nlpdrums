@@ -1,28 +1,3 @@
-# Reading command line for job index
-using ArgParse
-function parse_commandline()
-    s = ArgParseSettings()
-
-    @add_arg_table s begin
-        "--opt1"
-            help = "an option with an argument"
-        "--opt2", "-o"
-            help = "another option with an argument"
-            arg_type = Int
-            default = 0
-        "--flag1"
-            help = "an option without argument, i.e. a flag"
-            action = :store_true
-        "arg1"
-            help = "a positional argument"
-            required = true
-    end
-
-    return parse_args(s)
-end
-
-parsed_args = parse_commandline()
-
 using Flux
 using LinearAlgebra
 using Statistics
@@ -37,7 +12,6 @@ using StatsBase
 using Random
 using CSV
 using Lathe.preprocess: TrainTestSplit
-
 
 function CreateDTM(true_data)
     rightDocs = []
@@ -101,9 +75,9 @@ function StripUnwanted(row)
     author!(sd, string(row[2]))
     return sd
 end
+
 # ====================== Variables ====================== #
 
-trainTestSplitPercent = .7
 batchsize_custom = 100
 epochs = 500
 
@@ -113,55 +87,30 @@ trueValues = []
 
 # ====================== Conv Loop ===================== #
 
-# Reads job number and labels it "j"
-j = parse(Int64, get(parsed_args, "arg1", 0 ))
+# Filenames for train/test
+filename_train = "/Users/eplanch/Documents/GitHub/nlpdrums/src/JonsTraining.csv"
+filename_test = "/Users/eplanch/Documents/GitHub/nlpdrums/src/JonsTest.csv"
 
-# Pulls values from job that are necessary
-parameters_conv = [05, 10, 15, 20, 25, 30]
-parameters_pool = [200, 300, 400, 500, 600, 700]
-parameters = []
-for i in 1:length(parameters_conv)
-    for j in 1:length(parameters_pool)
-        if parameters_conv[i] == 5
-            new = "0" * string(parameters_conv[i]) * string(parameters_pool[j])
-            push!(parameters, new)
-        else
-            new = string(parameters_conv[i]) * string(parameters_pool[j])
-            push!(parameters, new)
-        end
-    end
-end
-seed = j % 100
-Random.seed!(seed)
-par = Int(ceil(j/100))
-param_conv_string = parameters[par][1] *  parameters[par][2]
-param_pool_string = parameters[par][3] *  parameters[par][4] *  parameters[par][5]
-param_conv = parse(Int64, param_conv_string)
-param_pool = parse(Int64, param_pool_string)
-
-# ******* FILENAME FOR TESTING ******* #
-#filename = "/Users/eplanch/Documents/GitHub/nlpdrums/src/JonsTraining.csv"
-
-# ******* FILENAME FOR CLUSTER ******* #
-filename = "JonsTraining.csv"
-
-true_data = CSV.read(filename, DataFrame)
-DTM = CreateDTM(true_data)
+# DTM's for train/test
+true_data_train = CSV.read(filename_train, DataFrame)
+true_data_test = CSV.read(filename_test, DataFrame)
+cat_data = vcat(true_data_test, true_data_train)
+cat_dtm = CreateDTM(cat_data)
+original_dmt_train = cat_dtm[:, 1:5000]
+original_dmt_test = cat_dtm[:, 5001:8000]
 println("DTM Done")
 
-# Create dataframe for subset
-total_DTM = DataFrame(DTM')
-
-# Split into train and test (validation) set
-train, test = TrainTestSplit(total_DTM, trainTestSplitPercent)
+# Dataframe's for train/test
+df_train = DataFrame(original_dmt_train')
+df_test = DataFrame(original_dmt_test')
 
 # Finding classifcation vectors
-class_train = train[:, end]
-class_test = test[:, end]
+class_train = df_train[:, end]
+class_test = df_test[:, end]
 
 # Removing classification columns
-dtm_train = Matrix(train[:, 1:end-1])
-dtm_test = Matrix(test[:, 1:end-1])
+dtm_train = Matrix(df_train[:, 1:end-1])
+dtm_test = Matrix(df_test[:, 1:end-1])
 
 ########################## Beginning of Convolution ##########################
 
@@ -169,11 +118,11 @@ dtm_test = Matrix(test[:, 1:end-1])
 num_rows_train = length(dtm_train[:,1])
 num_rows_test = length(dtm_test[:,1])
 layers_train = Chain(
-                Conv(tuple(1, param_conv), 1 => 1, relu),
-                AdaptiveMaxPool(tuple(num_rows_train, param_pool)))
+                Conv(tuple(1, 20), 1 => 1, relu),
+                AdaptiveMaxPool(tuple(num_rows_train, 600)))
 layers_test = Chain(
-                Conv(tuple(1, param_conv), 1 => 1, relu),
-                AdaptiveMaxPool(tuple(num_rows_test, param_pool)))
+                Conv(tuple(1, 20), 1 => 1, relu),
+                AdaptiveMaxPool(tuple(num_rows_test, 600)))
 println("Start Conv")
 
 # Convolution & Pooling for training matrix
@@ -197,11 +146,11 @@ for i in 2:length(conv_test_array[:,1])
 end
 
 # Making layers for neural net
-L1 = length(conv_test_mat[1,:])
-L2 = Int(ceil(L1/3))
-L3 = Int(ceil(L2/3))
-L4 = Int(ceil(L3/2))
-L5 = Int(ceil(L4/2))
+L1 = length(conv_test_mat[1,:]) #600
+L2 = Int(ceil(L1/3)) # 200
+L3 = Int(ceil(L2/3)) # 67
+L4 = Int(ceil(L3/3)) # 23
+L5 = Int(ceil(L4/3)) # 8
 
 # Neural net architecture
 function neural_net()
@@ -241,5 +190,3 @@ end
 push!(errorrates, 1-(sum((temppreds .> .5) .== class_test)/size(class_test)[1]))
 
 println("Round ",length(errorrates) , ": ", round((errorrates[end] * 100), digits = 2), "%")
-
-JLD.save("cv_errors" * string(j) * ".jld", "val", errorrates)
