@@ -1,4 +1,3 @@
-using Word2Vec
 using DataFrames
 using Languages
 using Lathe.preprocess: TrainTestSplit
