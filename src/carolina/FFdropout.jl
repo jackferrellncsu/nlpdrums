@@ -1,6 +1,8 @@
 using Lathe
 using Flux
 using Word2Vec
+using MLBase
+using Plots
 include("../embeddings_nn.jl")
 include("../data_cleaning.jl")
 
@@ -10,7 +12,7 @@ B = 50
 errors = Vector{Float64}()
 predictions = Vector{Vector{Float64}}()
 trueValues = Vector{Vector{Float64}}()
-for i in 1:B
+for i in 1:1
     train, test = TrainTestSplit(text, 0.9)
     sort!(train, "medical_specialty")
     createCorpusText(train, 0)
