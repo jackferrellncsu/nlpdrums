@@ -5,7 +5,6 @@ using JLD
 export cleanData, importClean
 
 
-
 function cleanData()
     #=Reading csv file =#
     filename = "mtsamples.csv"

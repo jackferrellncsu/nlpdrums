@@ -115,8 +115,8 @@ roc_nums = roc((trues .==1), vec(preds))
 tpr = true_positive_rate.(roc_nums)
 fpr = false_positive_rate.(roc_nums)
 
-plot(fpr, tpr, label = "Testing Error")
-title!("GloVe Embeddings ROC")
+plot(fpr, tpr, leg = false)
+title!("GloVe Embeddings Synthetic Data ROC")
 xlabel!("False Positive Rate")
 ylabel!("True Positive Rate")
 
