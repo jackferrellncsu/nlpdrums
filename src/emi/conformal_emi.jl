@@ -23,9 +23,6 @@ function nearest_neighbor(bag_df, new_index)
     min_index_second = 0
     min_val_second = 0
 
-    nn = 0
-
-
     for i in 1:length(bag_df[:, 1])
         if i != new_index
             if bag_df[i, 2] == "setosa"
@@ -44,17 +41,14 @@ function nearest_neighbor(bag_df, new_index)
     min_val_second = minimum(dist_array_second)
 
     if min_val_second == 0 && min_val_first == 0
-        return (0, 0)
+        return 0
     elseif min_val_second == 0
-        return (Inf32, 0)
-    elseif min_val_first == 0
-        return (0, Inf32)
+        return Inf32
     else
         nn_one = (min_val_first / min_val_second)
-        nn_two = (min_val_second / min_val_first)
     end
 
-    return (nn_one, nn_two)
+    return nn_one
 end
 
 # Finds confidence set for prediction
@@ -65,21 +59,27 @@ function conformal(nonconf, ϵ, bag_df, new_index)
     Γ = Vector{Float64}()
     conf_set = Set{String}()
 
-    for i in 1:length(bag_df[:, 1])
+    bag_df_2 = deepcopy(bag_df)
+    original_species = bag_df[new_index, 2]
 
-        new_vals = nonconf(bag_df, i)
-        push!(α_s, new_vals[1])
-        push!(α_v, new_vals[2])
-        non_val = nonconf(bag_df, new_index)
+    if original_species == "versicolor"
+        bag_df_2[new_index, 2] = "setosa"
+    else
+        bag_df_2[new_index, 2] = "versicolor"
     end
 
-    println(α_s)
+    for i in 1:length(bag_df[:, 1])
+        if original_species == "setosa"
+            push!(α_s, nonconf(bag_df, i))
+            push!(α_v, nonconf(bag_df_2, i))
+        else
+            push!(α_v, nonconf(bag_df, i))
+            push!(α_s, nonconf(bag_df_2, i))
+        end
+    end
 
     p_s = sum(α_s .>= α_s[new_index])/length(α_s)
     p_v = sum(α_v .>= α_v[new_index])/length(α_v)
-
-    println(p_s)
-    println(p_v)
 
     if p_v > ϵ
         push!(conf_set, "versicolor")
@@ -91,7 +91,7 @@ function conformal(nonconf, ϵ, bag_df, new_index)
 end
 
 # Tests functions
-conformal(nearest_neighbor, 0.05, iris, 2)
+conformal(nearest_neighbor, 0.40, iris, 2)
 
 # Plots the input data
 plotly()
