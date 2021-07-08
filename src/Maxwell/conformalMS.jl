@@ -3,8 +3,16 @@ using Random
 using Flux
 using Word2Vec
 using LinearAlgebra
+using NNlib
+using Lathe.preprocess: TrainTestSplit
 
-training,testing = MakeCSV()
+text = CSV.read("/Users/mlovig/Downloads/archive/Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv", DataFrame)[:,21]
+scores = (CSV.read("/Users/mlovig/Downloads/archive/Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv", DataFrame)[:,19])
+ratings = []
+for i in 1:length(scores)
+    push!(ratings, Flux.onehot(scores[i], 1:5))
+end
+training,testing = TrainTestSplit(DataFrame(hcat(text,ratings)),.8)
 training = training[shuffle(axes(training, 1)), :]
 corp = join(training[:,1])
 
@@ -13,32 +21,32 @@ open("movieCorpus.txt", "w") do io
     write(io, corp)
 end;
 
-Word2Vec.word2vec("movieCorpus.txt", "movieVectors.txt", size = 15, min_count = 100)
+Word2Vec.word2vec("movieCorpus.txt", "movieVectors.txt", size = 300, min_count = 1)
 M = Word2Vec.wordvectors("movieVectors.txt")
 
 #Forumulting scripts into vector form
-Dtrain = training[1:23000,:]
-calib = training[23001:end,:]
+Dtrain = training[1:Int(ceil(size(training)[1]*.8)),:]
+calib = training[Int(ceil(size(training)[1]*.8))+1:end,:]
 for i in 1:length(Dtrain[:,1])
     println(i)
-    Dtrain[i,1] = formulateText(M,training[i,1])
+    Dtrain[i,1] = convert(Vector{Float32},formulateText(M,training[i,1]))
 end
 for i in 1:length(calib[:,1])
     println(i)
-    calib[i,1] = formulateText(M,training[23000+i,1])
+    calib[i,1] = convert(Vector{Float32},formulateText(M,calib[i,1]))
 end
 
 #Training Nueral Net
 nn = Chain(
-    Dense(15, 30, swish),Dense(30, 10, swish),
-    Dense(10, 1, x->σ.(x))
+    Dense(300, 200, gelu),Dense(200, 100, gelu),
+    Dense(100, 50, gelu),Dense(50, 5), softmax
     )
 opt = RADAM()
 ps = Flux.params(nn)
 
 function loss(x, y)
   if rand() <= .1
-     return (Flux.Losses.binarycrossentropy(nn(x), y))
+     return sum(Flux.Losses.crossentropy(nn(x), y))
   else
      return 0
   end
@@ -76,35 +84,34 @@ end
 #Nonconformity using model estimate
 nonconf = []
 for (x,y) in zip(calib[:,1],calib[:,2])
-    push!(nonconf, ModelEstimateMeasure(nn,x,y))
+    #push!(nonconf, ModelEstimateMeasure(nn,x,argmax(y)))
+    push!(nonconf, NearestNeighbor(calib[:,1],calib[:,2],x,y))
 end
 
 #Grabbing p-values for our classification
-epsilon = .05
 pvals = []
 for i in 1:length(testing[:,1])
-    println(i)
+    println(i/length(testing[:,1]))
     v = formulateText(M,testing[i,1])
-    aTrue = ModelEstimateMeasure(nn,v,1)
-    aFalse = ModelEstimateMeasure(nn,v,0)
     subpvals = []
-    pTrue = sum(nonconf .> aTrue)/(length(nonconf)+1)
-    pFalse = sum(nonconf .> aFalse)/(length(nonconf)+1)
-    push!(subpvals,pFalse)
-    push!(subpvals,pTrue)
+    for ii in 1:5
+        #acase = ModelEstimateMeasure(nn,v,ii)
+        acase = NearestNeighbor(calib[:,1],calib[:,2],v,ii)
+        pcase = sum(nonconf .> acase)/(length(nonconf)+1)
+        push!(subpvals,acase)
+    end
     push!(pvals,subpvals)
 end
 
 #Creating Confomral Prediction intervals based on epsilon
-preds = []
-for i in 1:length(testing[:,1])
-    println(i)
+epsilon = .1
+    preds = []
+    for i in 1:length(testing[:,1])
     subpreds = []
-    if pvals[i][1] > epsilon
-        push!(subpreds, 0)
-    end
-    if pvals[i][2] > epsilon
-        push!(subpreds, 1)
+    for ii in 1:5
+        if pvals[i][ii]>epsilon
+            push!(subpreds, ii)
+        end
     end
     push!(preds,subpreds)
 end
@@ -113,7 +120,7 @@ end
 counter = 0
 lengthI = 0
 for i in 1:length(testing[:,2])
-    if testing[i,2] in preds[i]
+    if argmax(testing[i,2]) in preds[i]
         counter += 1
     end
     lengthI += length(preds[i])
@@ -125,6 +132,63 @@ println(lengthI/length(testing[:,2]))
 
 ---
 
+function makeCSVMulti()
+    trainingScores = []
+    trainingReviews = []
+    for i in 1:12500
+        println(i)
+        for ii in 6:10
+            if isfile("/Users/mlovig/Downloads/aclImdb/train/pos/$i"*"_"*"$ii.txt")
+            f = open("/Users/mlovig/Downloads/aclImdb/train/pos/$i"*"_"*"$ii.txt", "r")
+            push!(trainingReviews,read(f, String))
+            close(f)
+            push!(trainingScores, Flux.onehot(ii, 1:10))
+            end
+        end
+    end
+    for i in 1:12500
+        println(i)
+        for ii in 0:6
+            if isfile("/Users/mlovig/Downloads/aclImdb/train/neg/$i"*"_"*"$ii.txt")
+            f = open("/Users/mlovig/Downloads/aclImdb/train/neg/$i"*"_"*"$ii.txt", "r")
+            push!(trainingReviews,read(f, String))
+            close(f)
+            push!(trainingScores, Flux.onehot(ii, 1:10))
+            end
+        end
+    end
+    dfTrain = DataFrame(hcat(trainingReviews,trainingScores))
+
+    testScores = []
+    testReviews = []
+
+    for i in 1:12500
+        println(i)
+        for ii in 6:10
+            if isfile("/Users/mlovig/Downloads/aclImdb/test/pos/$i"*"_"*"$ii.txt")
+            f = open("/Users/mlovig/Downloads/aclImdb/test/pos/$i"*"_"*"$ii.txt", "r")
+            push!(testReviews,read(f, String))
+            close(f)
+            push!(testScores, Flux.onehot(ii, 1:10))
+            end
+        end
+    end
+    for i in 1:12500
+        println(i)
+        for ii in 0:6
+            if isfile("/Users/mlovig/Downloads/aclImdb/test/neg/$i"*"_"*"$ii.txt")
+            f = open("/Users/mlovig/Downloads/aclImdb/test/neg/$i"*"_"*"$ii.txt", "r")
+            push!(testReviews,read(f, String))
+            close(f)
+            push!(testScores, Flux.onehot(ii, 1:10))
+            end
+        end
+    end
+
+    dfTest = DataFrame(hcat(testReviews,testScores))
+
+    return [dfTrain,dfTest]
+end
 
 function MakeCSV()
     trainingScores = []
@@ -201,7 +265,7 @@ function NearestNeighbor(xs,ys,x,y)
     sameclass = []
     diffclass = []
     for i in 1:length(ys)
-        if y == ys[i] && x != xs[i]
+        if y == argmax(ys[i]) && x != xs[i]
             push!(sameclass, norm(xs[i] .- x))
         elseif x != xs[i]
             push!(diffclass, norm(xs[i] .- x))
@@ -211,9 +275,5 @@ function NearestNeighbor(xs,ys,x,y)
 end
 
 function ModelEstimateMeasure(nn,x,y)
-    if y == 1
-        return nn(x)[1]
-    else
-        return 1 - nn(x)[1]
-    end
+    return nn(x)[y]
 end
