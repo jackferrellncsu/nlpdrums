@@ -4,6 +4,7 @@ using DataFrames
 using Lathe.preprocess: TrainTestSplit
 using Flux
 using LinearAlgebra
+using Plots
 
 obj = load("PridePrej.jld")
     data = obj["data"]
@@ -22,32 +23,66 @@ get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
 vec_length = length(embtable.embeddings[:, get_word_index["the"]])
 data_embs = SummedContextEmbeddings(data, vec_length)
 
+#---------------------------------------------------------------------#
+
+#------------------Make 3D tensor-------------------------------------#
+
+
 #----------Beginning of NN training-----------------------------------#
 train, test = TrainTestSplit(data_embs)
 
 proper_train, calibrate = TrainTestSplit(train, 0.95)
 
-trainDL = Flux.Data.DataLoader((proper_train[1], proper_train[2]),
-                            batchsize = 100,
-                            shuffle = true)
-calibrateDL = Flux.Data.DataLoader((calibrate[1], calibrate[2]))
 
-nn = Chain(Dense(300, 400, mish),
-           Dense(400, 300, mish))
+train_x_mat = zeros(length(proper_train[1,1]), size(proper_train)[1])
+train_y_mat = zeros(length(proper_train[2, 1]), size(proper_train)[1])
+calibrate_x_mat = zeros(length(calibrate[1, 1]), size(calibrate)[1])
+calibrate_y_mat = zeros(length(calibrate[2, 1]), size(calibrate)[1])
+
+for (i, r) in enumerate(eachrow(proper_train))
+    train_x_mat[:, i] = r[1]
+    train_y_mat[:, i] = r[2]
+end
+
+for (i, r) in enumerate(eachrow(calibrate))
+    calibrate_x_mat[:, i] = r[1]
+    calibrate_y_mat[:, i] = r[2]
+end
+
+
+trainDL = Flux.Data.DataLoader((train_x_mat, train_y_mat),
+                            batchsize = 1000,
+                            shuffle = true)
+calibrateDL = Flux.Data.DataLoader((calibrate_x_mat, calibrate_y_mat))
+
+nn = Chain(Dense(300, 400, relu),
+           Dense(400, 300, x->x))
 
 opt = RADAM(1e-4)
 ps = Flux.params(nn)
 
+epochs = 10
+trace = TrainNN!(epochs)
+
+plot(1:epochs, trace)
+
+acc = 0
+for (x, y) in calibrateDL
+    acc += norm(y - nn(x))^2
+end
+mse_acc = acc / length(calibrateDL.data[1][1,:])
+
 function loss(x, y)
-    return norm(nn(x) - y)
+    return -1*abs((nn(x)⋅y) / (norm(nn(x))*norm(y)))
 end
 
-TrainNN!(50)
-
-
-
-
-
+function loss2(x, y)
+    z = norm(nn(x) - y)
+    if z < 0
+        println(x)
+    end
+    return z
+end
 
 function SummedContextEmbeddings(mat, vec_length)
     summed_embs = []
@@ -67,6 +102,9 @@ function SummedContextEmbeddings(mat, vec_length)
     return DataFrames.DataFrame(z)
 end
 
+
+
+
 function getEmbedding(word)
     if word ∈ keys(get_word_index)
         ind = get_word_index[word]
@@ -79,7 +117,16 @@ function getEmbedding(word)
 end
 
 function TrainNN!(epochs)
+    traceY = []
     for i in 1:epochs
-        Flux.train!(loss, ps, zip(proper_train[:,1], proper_train[:, 2]), opt)
+        Flux.train!(loss2, ps, trainDL, opt)
+        println(i)
+        totalLoss = 0
+        for (x,y) in trainDL
+         totalLoss += loss2(x,y)
+         #println("Total Loss: ", totalLoss)
+        end
+        push!(traceY, totalLoss)
     end
+    return traceY
 end
