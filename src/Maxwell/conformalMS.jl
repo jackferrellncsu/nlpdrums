@@ -5,6 +5,7 @@ using Word2Vec
 using LinearAlgebra
 using NNlib
 using Lathe.preprocess: TrainTestSplit
+using CSV
 
 text = CSV.read("/Users/mlovig/Downloads/archive/Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv", DataFrame)[:,21]
 scores = (CSV.read("/Users/mlovig/Downloads/archive/Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv", DataFrame)[:,19])
@@ -25,8 +26,8 @@ Word2Vec.word2vec("movieCorpus.txt", "movieVectors.txt", size = 300, min_count =
 M = Word2Vec.wordvectors("movieVectors.txt")
 
 #Forumulting scripts into vector form
-Dtrain = training[1:Int(ceil(size(training)[1]*.8)),:]
-calib = training[Int(ceil(size(training)[1]*.8))+1:end,:]
+Dtrain = training[1:Int(ceil(22632*.8)),:]
+calib = training[Int(ceil(22631*.8))+1:end,:]
 for i in 1:length(Dtrain[:,1])
     println(i)
     Dtrain[i,1] = convert(Vector{Float32},formulateText(M,training[i,1]))
@@ -52,7 +53,7 @@ function loss(x, y)
   end
 end
 
-for i in 1:100
+for i in 1:20
     println(i)
     Flux.train!(loss, ps, zip(Dtrain[:,1], Dtrain[:,2]), opt)
 end
@@ -84,8 +85,8 @@ end
 #Nonconformity using model estimate
 nonconf = []
 for (x,y) in zip(calib[:,1],calib[:,2])
-    #push!(nonconf, ModelEstimateMeasure(nn,x,argmax(y)))
-    push!(nonconf, NearestNeighbor(calib[:,1],calib[:,2],x,y))
+    push!(nonconf, 1-ModelEstimateMeasure(nn,x,argmax(y)))
+    #push!(nonconf, NearestNeighbor(calib[:,1],calib[:,2],x,y))
 end
 
 #Grabbing p-values for our classification
@@ -95,8 +96,8 @@ for i in 1:length(testing[:,1])
     v = formulateText(M,testing[i,1])
     subpvals = []
     for ii in 1:5
-        #acase = ModelEstimateMeasure(nn,v,ii)
-        acase = NearestNeighbor(calib[:,1],calib[:,2],v,ii)
+        acase = ModelEstimateMeasure(nn,v,ii)
+        #acase = NearestNeighbor(calib[:,1],calib[:,2],v,ii)
         pcase = sum(nonconf .> acase)/(length(nonconf)+1)
         push!(subpvals,acase)
     end
@@ -104,7 +105,7 @@ for i in 1:length(testing[:,1])
 end
 
 #Creating Confomral Prediction intervals based on epsilon
-epsilon = .1
+epsilon = .05
     preds = []
     for i in 1:length(testing[:,1])
     subpreds = []
@@ -118,13 +119,13 @@ end
 
 #Calculating empirical condifence level
 counter = 0
-lengthI = 0
-for i in 1:length(testing[:,2])
-    if argmax(testing[i,2]) in preds[i]
-        counter += 1
+    lengthI = 0
+    for i in 1:length(testing[:,2])
+        if argmax(testing[i,2]) in preds[i]
+            counter += 1
+        end
+        lengthI += length(preds[i])
     end
-    lengthI += length(preds[i])
-end
 
 println(counter / length(testing[:,2]))
 println(lengthI/length(testing[:,2]))
@@ -277,3 +278,7 @@ end
 function ModelEstimateMeasure(nn,x,y)
     return nn(x)[y]
 end
+
+open("/Users/mlovig/Downloads/enwiki-latest-pages-articles.xml.bz2", "r") do io
+    SSSS = read(io)
+end;
