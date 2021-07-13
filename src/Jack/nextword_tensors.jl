@@ -26,14 +26,20 @@ get_word_vector = Dict(embtable.embeddings[:, ii] => word for (ii, word) in enum
 get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
 vec_length = length(embtable.embeddings[:, get_word_index["the"]])
 
-x_mat, y_mat = EmbeddingsTensor(data, 1)
+#filter out non-embedded outcomes
+unique_words = [word for word in keys(get_vector_word)]
+data = DataFrame(data)
+filter!(row -> row[2] ∈ unique_words, data)
+data = Matrix(data)
+
+x_mat, y_mat = EmbeddingsTensor(data, 5)
 
 #split into test, proper_train, calibrate
 train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat)
 proper_train_x, calibrate_x, proper_train_y, calibrate_y = SampleMats(train_x, train_y, .92)
 
 trainDL = Flux.Data.DataLoader((proper_train_x, proper_train_y),
-                            batchsize = 100,
+                            batchsize = 1000,
                             shuffle = true)
 
 calibrateDL = Flux.Data.DataLoader((calibrate_x, calibrate_y))
@@ -45,12 +51,13 @@ nn = Chain(Flux.flatten,
            Dense(500, 300, x->x))
 
 opt = RADAM(1e-4)
-ps = Flux.params(nn)
 
-epochs = 100
-trace = TrainNN!(epochs)
 
-plot(1:epochs, trace)
+epochs = 20
+trace,mse  = TrainNN!(epochs, loss, nn, opt)
+
+
+plot(1:epochs, mse; label = "Validation MSE")
 
 err = 0
 for (x, y) in calibrateDL
@@ -67,7 +74,8 @@ using BSON: @load
 BSON.@load "basic.bson" nn
 
 
-test = conf_pred(nn, 0.3)
+test = ConfPred(nn)
+
 
 dist_from_the = Dict()
 for (x, y) in testDL
@@ -76,7 +84,7 @@ for (x, y) in testDL
 end
 
 accuracy = CheckValidity(test)
-accuracy
+
 
 
 """
@@ -123,41 +131,10 @@ function ConfPred(nn, ϵ = 0.05)
         end
         pop!(α)
         push!(all_regs, region)
-        print(length(region))
     end
     return all_regs
 end
 
-
-α = Vector{Float64}()
-for (x, y) in calibrateDL
-    α_i = norm(y - nn(x))
-    push!(α, α_i)
-end
-
-sort!(α, rev = true)
-
-α_k = 0
-region = []
-for (i, (x, y)) in enumerate(testDL)
-    if i == 1
-        global α_k = norm(y - nn(x))
-        push!(α, α_k)
-        #c = count(x->(x>=α_k), α)
-        print(typeof(x))
-        q = quantile(α, 0.50)
-        pred = nn(x)
-        for i in get_vector_word
-            dist = norm(pred - i[2])
-            if dist <= q
-                push!(region, i[1])
-            end
-        end
-
-    else
-        break
-    end
-end
 
 #-----------------NN Helpers---------------------------------------#
 """
@@ -170,15 +147,24 @@ function loss(x, y)
     return norm(nn(x) - y)
 end
 
-"""
-    TrainNN!(epochs)
+function loss2(x, y)
+    return norm(nn(x)-y)
+end
 
-Trains a neural net using the specified number of epochs.
+"""
+    TrainNN!(epochs, loss, nn, opt)
+
+Trains a neural net using the specified number of epochs.  Uses input optimizer
+and loss function.
 
 Returns a trace plot.
 """
-function TrainNN!(epochs)
+function TrainNN!(epochs, loss, nn, opt)
     traceY = []
+    mse = []
+
+    ps = Flux.params(nn)
+
     for i in 1:epochs
         Flux.train!(loss, ps, trainDL, opt)
         println(i)
@@ -187,9 +173,15 @@ function TrainNN!(epochs)
          totalLoss += loss(x,y)
          #println("Total Loss: ", totalLoss)
         end
+        err = 0
+        for (x, y) in calibrateDL
+            err += norm(y - nn(x))^2
+        end
+        mse_acc = err / length(calibrateDL.data[2][1, :])
         push!(traceY, totalLoss)
+        push!(mse, mse_acc)
     end
-    return traceY
+    return traceY, mse
 end
 
 #---------Create Tensor--------------------------------------------------------#

@@ -35,7 +35,7 @@ using CSV
 using DataFrames
 
 
-
+#Sum up the word embeddings from sample to input in NN
 function SampleEmbeddings(df, vec_size)
     embed = 0
     embed_mat = Matrix{Float64}(I, vec_size, length(eachrow(df)))
