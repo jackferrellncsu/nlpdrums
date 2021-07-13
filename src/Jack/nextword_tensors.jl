@@ -84,6 +84,7 @@ for (x, y) in testDL
 end
 
 accuracy = CheckValidity(test)
+mean_size, med_size = IntervalEfficiency(test)
 
 
 
@@ -101,6 +102,11 @@ function CheckValidity(intervals)
     end
     return acc / length(intervals)
 
+end
+
+function IntervalEfficiency(intervals)
+    lengths = length.(intervals)
+    return median(lenghths), return mean(lengths)
 end
 
 """
