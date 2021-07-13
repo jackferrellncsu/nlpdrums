@@ -1,28 +1,3 @@
-using ArgParse
-
-function parse_commandline()
-    s = ArgParseSettings()
-
-    @add_arg_table s begin
-        "--opt1"
-            help = "an option with an argument"
-        "--opt2", "-o"
-            help = "another option with an argument"
-            arg_type = Int
-            default = 0
-        "--flag1"
-            help = "an option without argument, i.e. a flag"
-            action = :store_true
-        "arg1"
-            help = "a positional argument"
-            required = true
-    end
-
-    return parse_args(s)
-end
-
-parsed_args = parse_commandline()
-
 using Flux
 using LinearAlgebra
 using Statistics
@@ -32,14 +7,9 @@ using Embeddings
 using Lathe.preprocess: TrainTestSplit
 using JLD
 using DataFrames
+using MLBase
 
-# veclength = # of input nodes
-"""
-    SampleEmbeddings(df, vec_size)
 
-Sample words from dataframe, df
-Create a matrix of the embeddings of sampled words (dim = vec_size)
-"""
 function SampleEmbeddings(df, vec_size)
     embed = 0
     embed_mat = Matrix{Float64}(I, vec_size, length(eachrow(df)))
@@ -55,11 +25,6 @@ function SampleEmbeddings(df, vec_size)
     return embed_mat
 end
 
-"""
-    getEmbedding(word)
-
-Retrieve embedding for specific word
-"""
 function getEmbedding(word)
     if word ∈ keys(get_word_index)
         ind = get_word_index[word]
@@ -71,34 +36,29 @@ function getEmbedding(word)
     return emb
 end
 
+# veclength = # of input nodes
 vec_length = 300
 
 TrainTestSplitPercent = 0.7
 epochs = 500
 
-n = parse(Int64, get(parsed_args, "arg1", 0))
-Random.seed!(n%100)
-param = Int(ceil(n/100))
+#n = parse(Int64, get(parsed_args, "arg1", 0))
+#Random.seed!(n%100)
+#param = Int(ceil(n/100))
 
-dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-d = dropouts[param]
+d = 0.7
 
 obj = load("embtable_word2vec.jld")
 embtable = obj["embtable"]
 
 get_word_index = Dict(word => ii for (ii, word) in enumerate(embtable.vocab))
 
-data = CSV.read("JonsTraining.csv", DataFrame)
-
-#train, test = TrainTestSplit(data[(1-1)*1000+1:(1)*1000, :])
-#SampleEmbeddings(train, 300)
+train = CSV.read("../JonsTraining.csv", DataFrame)
+test = CSV.read("../JonsTest.csv", DataFrame)
 
 
-train, test = TrainTestSplit(data, TrainTestSplitPercent)
 trainEmbs = SampleEmbeddings(train, vec_length)
 testEmbs = SampleEmbeddings(test, vec_length)
-
-
 
 classTrain = train[:,2]
 classTrain = classTrain * 1.0
@@ -108,33 +68,6 @@ classTest = classTest * 1.0
 
 tmat = Matrix(test)
 
-#=
-vecsTrain = zeros(length(classTrain), veclength)
-vecsTest = zeros(length(tmat[:,1]), veclength)
-
-for i in 1:length(classTrain)
-    vecsTrain[i,:] = formulateText(M, train[i,1])
-end
-
-for i in 1:length(tmat[:,1])
-    vecsTest[i,:] = formulateText(M, test[i,1])
-end
-
-train_mat = vecsTrain'
-test_mat = vecsTest'
-=#
-# =============Neural Net Stuff=============#
-"""
-    neural_net()
-
-Feed-forward neural net with 3 dense hidden layers with 70% dropout
-    and mish activation
-    Layer 1: 300 (input)
-    Layer 2: 150, p(dropout) = 0.7
-    Layer 3: 50, p(dropout) = 0.7
-    Layer 4: 10, p(dropout) = 0.7
-    Layer 5: 1 (output)
-"""
 function neural_net()
     nn = Chain(
         Dense(300, 150, mish),
@@ -162,9 +95,6 @@ para = Flux.params(neuralnet)
 
 #=========Training the Model========#
 
-totalLoss = []
-traceY = []
-traceY2 = []
 
 for k in 1:epochs
     Flux.train!(loss, para, newTrainData, opt)
@@ -173,7 +103,7 @@ for k in 1:epochs
     end
 end
 
-testmode!(neuralnet)
+#testmode!(neuralnet)
 
 tempreds = []
 for (x,y) in newTestData
@@ -185,6 +115,12 @@ end
 errors = 1-sum((tempreds .> .5) .== classTest)/length(classTest)
 
 
-#JLD.save("FFNNtrueValues.jld", "trueValues", trueValues)
-#JLD.save("FFNNpredictions.jld", "predictions", predictions)
-JLD.save("FFNNerrors" * string(param)* "_"* string(n%100)*".jld", "errors", errors)
+roc_nums = roc((classTest.==1), convert(Vector{Float64}, tempreds))
+
+tpr = true_positive_rate.(roc_nums)
+fpr = false_positive_rate.(roc_nums)
+
+Plots.plot(fpr, tpr)
+Plots.title!("Feed-Forward Net with Dropout, Synthetic Data")
+xlabel!("False Positive Rate")
+ylabel!("True Positive Rate")

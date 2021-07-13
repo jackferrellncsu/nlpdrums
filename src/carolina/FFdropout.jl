@@ -6,6 +6,8 @@ using Plots
 include("../embeddings_nn.jl")
 include("../data_cleaning.jl")
 
+Random.seed!(13)
+
 text = importClean()
 #import text, sort by field, and create corpus
 B = 50
@@ -13,13 +15,13 @@ errors = Vector{Float64}()
 predictions = Vector{Vector{Float64}}()
 trueValues = Vector{Vector{Float64}}()
 for i in 1:1
-    train, test = TrainTestSplit(text, 0.9)
+    train, test = TrainTestSplit(text, 0.7)
     sort!(train, "medical_specialty")
     createCorpusText(train, 0)
 
     field = " Cardiovascular / Pulmonary"
 
-    word2vec("corpus.txt", "vectors.txt", size = 15, window = 20)
+    word2vec("corpus.txt", "vectors.txt", size = 300, window = 20)
     rm("corpus.txt")
 
     m = wordvectors("vectors.txt", normalize = true)
@@ -32,8 +34,8 @@ for i in 1:1
     classTest *= 1.0
     classTrain *= 1.0
 
-    vecsTrain = zeros(length(classTrain), 15)
-    vecsTest = zeros(size(classTest)[1], 15)
+    vecsTrain = zeros(length(classTrain), 300)
+    vecsTest = zeros(size(classTest)[1], 300)
 
     for i in 1:length(classTrain)
         vecsTrain[i, :] = formulateText(m, train[i,3])
@@ -49,13 +51,19 @@ for i in 1:1
     trainingdata = Flux.Data.DataLoader((train_mat, classTrain'), batchsize = 100, shuffle = true)
     testingdata = Flux.Data.DataLoader((test_mat, classTest'))
 
+    d = 0.7
+
     function neural_net()
         nn = Chain(
-            Dense(15, 7, mish),
-            Dropout(0.6),
-            Dense(7, 1, x->σ.(x))
-        )
-    end
+            Dense(300, 150, mish),
+            Dropout(d),
+            Dense(150, 50, mish),
+            Dropout(d),
+            Dense(50, 10, mish),
+            Dropout(d),
+            Dense(10, 1, x->σ.(x))
+            )
+        end
 
     neuralnet = neural_net()
     Flux.testmode!(neuralnet)
@@ -65,7 +73,7 @@ for i in 1:1
 
     para = Flux.params(neuralnet)
 
-    epochs = 1000
+    epochs = 500
     for i in 1:epochs
         Flux.train!(lozz, para, trainingdata, opt)
     end
@@ -88,37 +96,18 @@ for i in 1:1
 
 end
 
+
+plotly()
+#Plots.plot(1:5,1:5)
 mean(errors)
-best = argmin(errors)
-worst = argmax(errors)
 
-bestp = predictions[best]
-worstp = predictions[worst]
-bestt = trueValues[best]
-worstt = trueValues[worst]
-averageerr = mean(errors)
 
-arbestp = convert(Vector{Float64}, bestp)
-arworstp = convert(Vector{Float64}, worstp)
-rocnumsbest = MLBase.roc(bestt.==1, arbestp, 50)
-rocnumsworst = MLBase.roc(worstt.==1, arworstp, 50)
+roc_nums = roc((classTest.==1), convert(Vector{Float64}, tempreds))
 
-bestTPR = true_positive_rate.(rocnumsbest)
-bestFPR = false_positive_rate.(rocnumsbest)
-Plots.plot(bestFPR, bestTPR)
+tpr = true_positive_rate.(roc_nums)
+fpr = false_positive_rate.(roc_nums)
 
-worstTPR = true_positive_rate.(rocnumsworst)
-worstFPR = false_positive_rate.(rocnumsworst)
-Plots.plot(bestFPR, bestTPR, label = "Best")
-Plots.plot!(worstFPR, worstTPR, label = "Worst")
-Plots.title!("ROC Curve, Feed-Forward with Dropout")
+Plots.plot(fpr, tpr)
+Plots.title!("Feed-Forward Net with Dropout, Real Data")
 xlabel!("False Positive Rate")
 ylabel!("True Positive Rate")
-
-#= Trace Plot ??
-x = 1:epochs
-y = traceY
-Plots.plot(x, y, label = "Loss Progression")
-xlabel!("Total # of epochs")
-ylabel!("Loss values")
-=#
