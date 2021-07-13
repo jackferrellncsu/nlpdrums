@@ -26,7 +26,7 @@ get_word_vector = Dict(embtable.embeddings[:, ii] => word for (ii, word) in enum
 get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
 vec_length = length(embtable.embeddings[:, get_word_index["the"]])
 
-x_mat, y_mat = EmbeddingsTensor(data)
+x_mat, y_mat = EmbeddingsTensor(data, 1)
 
 #split into test, proper_train, calibrate
 train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat)
@@ -58,6 +58,7 @@ for (x, y) in calibrateDL
 end
 mse_acc = err / length(calibrateDL.data[2][1, :])
 
+#Save and load model
 using BSON: @save
 @save "basic.bson" nn
 
@@ -68,8 +69,15 @@ BSON.@load "basic.bson" nn
 
 test = conf_pred(nn, 0.3)
 
+dist_from_the = Dict()
+for (x, y) in testDL
+    dist = norm(nn(x) - get_vector_word["the"])
+    dist_from_the[get_word_vector[y]] = dist
+end
+
 accuracy = CheckValidity(test)
 accuracy
+
 
 """
     CheckValidity(intervals)
@@ -151,39 +159,13 @@ for (i, (x, y)) in enumerate(testDL)
     end
 end
 
-test = zeros(300, 5, 1)
-for i in 1:5
-    test[:, i] = getEmbedding("forbade")
-end
-q = quantile(α, 0.5)
-pred = nn(test)
-region = []
-for i in get_vector_word
-    dist = norm(pred - i[2])
-
-    if dist <= q
-        push!(region, i[1])
-    end
-end
-
-
-
-
-
-
-
-
-
-
-3560 / (length(α) + 1)
-
-interval = filter(x->(x<=α_k), α)
-
-
-
-
-
 #-----------------NN Helpers---------------------------------------#
+"""
+    loss(x, y)
+
+Naive loss for regressive next word prediction, calculated as Euclidean distance
+between observed and predicted.
+"""
 function loss(x, y)
     return norm(nn(x) - y)
 end
@@ -214,7 +196,7 @@ end
 """
     EmbeddingsTensor(data, context_size = 5)
 
-Creates a 3-dimensional cluster
+Creates a 3-dimensional matrix of word embeddings
 """
 function EmbeddingsTensor(data, context_size = 5)
     tensor = zeros(300, context_size, size(data)[1])
@@ -223,7 +205,7 @@ function EmbeddingsTensor(data, context_size = 5)
 
     for (i, r) in enumerate(eachrow(data))
         sentence_mat = zeros(300, context_size)
-        if length(r[1]) >= context_size
+        if length(r[1]) >= context_size && context_size != 1
             for (j, w) in enumerate(r[1][end-4:end])
                 sentence_mat[:, j] = getEmbedding(w)
             end
@@ -272,3 +254,33 @@ function getEmbedding(word)
     end
     return emb
 end
+
+#-----------------Diagnostics--------------------------------------------------#
+"""
+    DistToAll(word)
+
+Calculates distance between given word and all others from corpus in GloVe vector
+space.
+"""
+function DistToAll(word)
+    word_vec = get_vector_word[word]
+    dist_dict = Dict()
+    for iter in get_vector_word
+        dist = norm(word_vec - iter[2])
+        dist_dict[iter[1]] = dist
+    end
+    return dist_dict
+
+end
+
+means = []
+for word in keys(get_vector_word)
+    temp = DistToAll(word)
+    push!(means, mean(values(temp)))
+end
+
+mean(means)
+
+histogram(means, leg = false)
+title!("Distribution of average distance between all other words")
+png("AvgGloVeDistHist")
