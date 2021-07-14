@@ -32,9 +32,15 @@ data = DataFrame(data)
 filter!(row -> row[2] ∈ unique_words, data)
 data = Matrix(data)
 
+#t = Flux.onehotbatch(data[:,2], unique_words);
+y_mat = BitArray(undef, 6575, 114798)
 
+for i in 1:size(data)[1]
+    y_mat[:, i]  = (Flux.onehot(data[i, 2], unique_words) .== 1)
+end
 
-x_mat, y_mat = EmbeddingsTensor(data)
+x_mat, trash = EmbeddingsTensor(data)
+trash = Nothing
 
 #split into test, proper_train, calibrate
 train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat)
@@ -47,24 +53,22 @@ trainDL = Flux.Data.DataLoader((proper_train_x, proper_train_y),
 calibrateDL = Flux.Data.DataLoader((calibrate_x, calibrate_y))
 testDL = Flux.Data.DataLoader((test_x, test_y))
 
-cosmod = Chain(Flux.flatten,
-           Dense(1500, 800, mish),
-           Dense(800, 500, mish),
-           Dense(500, 300, x->x))
+classmod = Chain(Flux.flatten,
+           Dense(1500, 6575, relu),
+           softmax)
+
 
 opt = RADAM(1e-4)
-ps = Flux.params(cosmod)
+ps = Flux.params(classmod)
 
-epochs = 10
-trace = TrainNN!(epochs)
+epochs = 2
+trace = TrainNN!(epochs, loss, classmod, opt)
+
+Flux.train!(loss, ps, trainDL, opt)
 
 plot(1:epochs, trace)
 
-err = 0
-for (x, y) in calibrateDL
-    err += norm(y - cosmod(x))^2
-end
-mse_acc = err / length(calibrateDL.data[2][1, :])
+
 
 #Save and load model
 using BSON: @save
@@ -73,15 +77,6 @@ using BSON: @save
 using BSON: @load
 
 BSON.@load "basic.bson" cosmod
-
-
-test = conf_pred(cosmod, 0.3)
-
-dist_from_the = Dict()
-for (x, y) in testDL
-    dist = norm(cosmod(x) - get_vector_word["the"])
-    dist_from_the[get_word_vector[y]] = dist
-end
 
 accuracy = CheckValidity(test)
 accuracy
@@ -145,19 +140,20 @@ Naive loss for regressive next word prediction, calculated as Euclidean distance
 between observed and predicted.
 """
 function loss(x, y)
-    z = cosmod(x)
-    return -1*(z ⋅ y / (norm(z)*norm(y)))
+    return Flux.Losses.crossentropy(classmod(x), y)
 end
 
 """
-    TrainNN!(epochs)
+    TrainNN!(epochs, loss, nn, opt)
 
-Trains a neural net using the specified number of epochs.
+Trains a neural net using the specified number of epochs.  Uses input optimizer
+and loss function.
 
 Returns a trace plot.
 """
-function TrainNN!(epochs)
+function TrainNN!(epochs, loss, nn, opt)
     traceY = []
+    ps = Flux.params(nn)
     for i in 1:epochs
         Flux.train!(loss, ps, trainDL, opt)
         println(i)

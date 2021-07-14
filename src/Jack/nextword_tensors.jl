@@ -106,7 +106,7 @@ end
 
 function IntervalEfficiency(intervals)
     lengths = length.(intervals)
-    return median(lenghths), return mean(lengths)
+    return median(lengths), mean(lengths)
 end
 
 """
@@ -270,6 +270,7 @@ function DistToAll(word)
     return dist_dict
 
 end
+
 
 means = []
 for word in keys(get_vector_word)
