@@ -137,11 +137,7 @@ function makeData(sentances, nextword, get_word_index, incorrects)
 
     resp = Int.(vcat(ones(Int(length(sentancesVecs)/(incorrects+1))),zeros(Int(incorrects*length(sentancesVecs)/(incorrects+1)))))
     mat = vecvec_to_matrix(sentancesVecs,resp)
-<<<<<<< Updated upstream
-    return [mat,resp]
-=======
     return mat,resp
->>>>>>> Stashed changes
 end
 
 function toEmbedding(words, Embeddings)
@@ -199,148 +195,9 @@ mat,resp = makeData(S,N, get_word_index, 9)
 
 df = DataFrame(mat)
 
-training,testing = TrainTestSplit(df, .9)
-training,calib = TrainTestSplit(training, .9)
+training,testing = TrainTestSplit(df, .8)
+training,calib = TrainTestSplit(training, .8)
 
 training = Matrix(training)
 testing= Matrix(testing)
 calib = Matrix(calib)
-
-nn = Chain(
-    Dense(600, 300, relu),
-    Dense(300, 150, relu),
-    Dense(150, 75, relu),
-    Dense(75,  30,  gelu),
-    Dense(30,  10,  gelu),
-    Dense(10,  1, sigmoid))
-    ps = Flux.params(nn)
-
-function loss(x, y)
-    return Flux.Losses.binarycrossentropy(nn(x),y)
-end
-
-losses = []
-batch  = 2000
-epochs = 50
-eta = .00001
-
-DL = Flux.Data.DataLoader((training[:,1:end-1]',training[:,end]'), batchsize = 50000, shuffle = true)
-opt = RADAM(eta)
-for i in ProgressBar(1:epochs)
-    Flux.train!(loss, ps, DL, opt)
-end
-
-for i in 1:epochs
-    training = training[shuffle(1:end), :]
-    vecsvecs = []
-    for i in 1:size(training)[1]
-        push!(vecsvecs, training[i, 1:end-1])
-    end
-    for ii in ProgressBar(1:Int(floor(length(vecsvecs)/batch)))
-        if ii%10 == 9
-            opt = RADAM(eta)
-            eta = eta*.9
-        end
-        L = sum(loss.(vecsvecs[(ii-1) * batch + 1:ii*batch], training[(ii-1) * batch + 1:ii*batch,end]))
-        Flux.train!(loss, ps, zip(vecsvecs[(ii-1) * batch + 1:ii*batch], training[(ii-1) * batch + 1:ii*batch,end]), opt)
-        push!(losses, L/batch)
-
-        print("         ", L/batch)
-    end
-end
-
-#---------------------
-occur = countmap(wordspl)
-a_i = []
-    for i in 1:size(calib)[1]
-    if isnan(calib[i,1]) == false && (calib[i,end]) == 1 && calib[i,end-1] != 0
-        #LL = log2(occur[get_vector_word[calib[i,301:600]]]) + .000000001
-        #LLA = 1 - nn(calib[i,1:end-1])[1]^(1/LL)
-        NNA = 1 - nn(calib[i,1:end-1])[1]
-        #push!(a_i,  max(NNA,LLA))
-        push!(a_i,  NNA)
-    end
-end
-epsilon = .05
-ii=1
-Q = quantile(a_i,1-epsilon)
-as = []
-if testing[ii,301:600] != zeros(50) && testing[ii,end] == 1
-    pred = []
-
-    for i in 1:length(uni)
-        if get(get_word_index, uni[i], 0)!= 0
-            #LL = log2(occur[uni[i]]) + .000000001
-            #LLA = (1 - nn(vcat(testing[ii,1:300], toEmbedding([uni[i]],get_word_index)))[1]^(1/LL))
-            NNA = 1 - nn(vcat(testing[ii,301:600], toEmbedding([uni[i]],get_word_index)))[1]
-            #a = max(NNA,LLA)
-            a = NNA
-            push!(as,a)
-            if a < Q
-                push!(pred, uni[i])
-            end
-        end
-    end
-    correctword = get_vector_word[testing[ii,301:600]]
-    println(ii, " ", length(pred), " ", correctword in pred, " ", correctword)
-    push!(counter, correctword in pred)
-    push!(eff, length(pred))
-    println(ii / sum(testing[:,end]), " ", sum(counter)/length(counter))
-end
-
-
-counter = []
-    eff = []
-    epsilon = .05
-    Q = quantile(a_i,1-epsilon)
-    for ii in 1:size(testing)[1]
-        if testing[ii,301:600] != zeros(300) && testing[ii,end] == 1
-            pred = []
-
-            for i in 1:length(uni)
-                if get(get_word_index, uni[i], 0)!= 0
-                    #LL = log2(occur[uni[i]]) + .000000001
-                    #LLA = (1 - nn(vcat(testing[ii,1:300], toEmbedding([uni[i]],get_word_index)))[1]^(1/LL))
-                    NNA = 1 - nn(vcat(testing[ii,301:600], toEmbedding([uni[i]],get_word_index)))[1]
-                    #a = max(NNA,LLA)
-                    a = NNA
-                    if a < Q
-                        push!(pred, uni[i])
-                    end
-                end
-            end
-            correctword = get_vector_word[testing[ii,301:600]]
-            println(ii, " ", length(pred), " ", correctword in pred, " ", correctword)
-            push!(counter, correctword in pred)
-            push!(eff, length(pred))
-            println(ii / sum(testing[:,end]), " ", sum(counter)/length(counter))
-        end
-    end
-
-A = reverse(sort(collect(zip(values(occur),keys(occur)))))
-a = []
-for i in 1:length(A)
-    push!(a,A[i][1])
-end
-a = a / sum(a)
-suma = []
-for i in 1:length(a)
-    push!(suma,sum(a[1:i]))
-end
-diffa = suma .> .95
-argmax(diffa)
-
-norms = []
-for i in ProgressBar(1:length(uni))
-    for ii in uni
-        push!(norms,norm(toEmbedding([uni[i]],get_word_index)-toEmbedding([ii],get_word_index)))
-    end
-end
-
-using BSON: @save
-
-@save "BestModel1.bson" nn
-
-using BSON: @load
-
-@load "BestModel.bson" nn
