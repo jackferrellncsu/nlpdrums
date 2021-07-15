@@ -23,6 +23,7 @@ embtable = load("pridePrejEmbs.jld", "embtable")
 get_vector_word = Dict(word=>embtable.embeddings[:,ii] for (ii,word) in enumerate(embtable.vocab))
 #get word from vector
 get_word_vector = Dict(embtable.embeddings[:, ii] => word for (ii, word) in enumerate(embtable.vocab))
+#get index from word
 get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
 vec_length = length(embtable.embeddings[:, get_word_index["the"]])
 
