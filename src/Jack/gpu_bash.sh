@@ -8,7 +8,7 @@
 #BSUB -oo /share/hmmrs/jferrel3/NLP/results.%J
 #BSUB -e /share/hmmrs/jferrel3/NLP/errors.%J
 
-module load cuda 
+module load cuda
 module load julia
 setenv JULIA_DEPOT_PATH /usr/local/usrapps/hmmrs/mlovig/julia
-julia parrellization.jl
+julia nextword_softmax_cluster.jl
