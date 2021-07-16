@@ -47,7 +47,7 @@ x_mat = EmbeddingsTensor(data, get_vector_word)[1]
 
 #Split input and output into propertrain/calibration/test
 #split into test, proper_train, calibrate
-train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat) 
+train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat)
 proper_train_x, calibrate_x, proper_train_y, calibrate_y = SampleMats(train_x, train_y, .92) |> gpu
 
 
@@ -71,6 +71,8 @@ loss(x, y) = Flux.Losses.crossentropy(model(x), y)
 trace = TrainNN!(epochs, loss, model, opt)
 
 save("softmod_trace_gpu.jld", "trace", trace)
+
+model |> cpu
 
 using BSON: @save
 BSON.@save "softmod_gpu.bson" model
