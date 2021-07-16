@@ -9,27 +9,25 @@ using StatsBase
 using BSON
 using CUDA
 
-Pkg.test("CUDA")
-
 include("nextword_helpers.jl")
 
 Random.seed!(26)
 
-obj = load("PridePrej.jld")
-    data = obj["data"]
-    sentences = obj["sentances"]
-    corpus = obj["corpus"]
+obj = load("PridePrej.jld");
+    data = obj["data"];
+    sentences = obj["sentances"];
+    corpus = obj["corpus"];
 
 embtable = load("pridePrejEmbs.jld", "embtable")
 
 #get vector from word
-get_vector_word = Dict(word=>embtable.embeddings[:,ii] for (ii,word) in enumerate(embtable.vocab))
+get_vector_word = Dict(word=>embtable.embeddings[:,ii] for (ii,word) in enumerate(embtable.vocab));
 #get word from vector
-get_word_vector = Dict(embtable.embeddings[:, ii] => word for (ii, word) in enumerate(embtable.vocab))
+get_word_vector = Dict(embtable.embeddings[:, ii] => word for (ii, word) in enumerate(embtable.vocab));
 #get index from word
-get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
+get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab));
 
-vec_length = length(get_vector_word["the"])
+vec_length = length(get_vector_word["the"]);
 
 #filter out non-embedded outcomes
 unique_words = [word for word in keys(get_vector_word)]
@@ -49,8 +47,8 @@ x_mat = EmbeddingsTensor(data, get_vector_word)[1]
 
 #Split input and output into propertrain/calibration/test
 #split into test, proper_train, calibrate
-train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat)
-proper_train_x, calibrate_x, proper_train_y, calibrate_y = SampleMats(train_x, train_y, .92)
+train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat) 
+proper_train_x, calibrate_x, proper_train_y, calibrate_y = SampleMats(train_x, train_y, .92) |> gpu
 
 
 #Put inputs and outputs into Flux Dataloader class for NN input
@@ -72,7 +70,7 @@ loss(x, y) = Flux.Losses.crossentropy(model(x), y)
 
 trace = TrainNN!(epochs, loss, model, opt)
 
-save("softmod_trace.jld", "trace", trace)
+save("softmod_trace_gpu.jld", "trace", trace)
 
 using BSON: @save
-BSON.@save "softmod.bson" model
+BSON.@save "softmod_gpu.bson" model

@@ -6,6 +6,7 @@ N = 2^20
 x = fill(1.0f0, N)
 y = fill(2.0f0, N)
 
+Threads.nthreads()
 y .+= x
 
 function sequential_add!(y, x)
