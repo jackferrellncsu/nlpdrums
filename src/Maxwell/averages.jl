@@ -76,11 +76,11 @@ Ex.
 julia > permuteSentances([["hello", "my", "name"]])
     [[["hello"], ["hello", "my"]], ["my", "name"]]
 """
-function permuteSentances(vectorizedSpl)
+function permuteSentances(vectorizedSpl, minLength)
     sentances = []
     nextword = []
     for i in ProgressBar(1:length(vectorizedSpl))
-        for ii in 1:length(vectorizedSpl[i])-1
+        for ii in minLength:length(vectorizedSpl[i])-1
             push!(sentances,vectorizedSpl[i][1:ii])
             push!(nextword,vectorizedSpl[i][ii+1])
         end
@@ -189,15 +189,90 @@ get_vector_word = Dict(embtable.embeddings[:,ii]=>word for (ii,word) in enumerat
 
 #JLD.save("PridePrej.jld", "corpus", corp, "sentances", vectorizedSpl, "data", hcat(sentances,nextword), "embeddings", get_word_index)
 
-S,N = permuteSentances(vectorizedSpl)
-
-mat,resp = makeData(S,N, get_word_index, 9)
+S,N = permuteSentances(vectorizedSpl,1)
+SS = vcat.(S,N)
+SSC = countmap(SS)
+SSCA = [v for (k,v) in SSC]
+mat,resp = makeData(S,N, get_word_index, 0)
+mat = mat[:,1:end-1]
 
 df = DataFrame(mat)
 
-training,testing = TrainTestSplit(df, .8)
-training,calib = TrainTestSplit(training, .8)
+training,extra = TrainTestSplit(df, .9)
+calib,testing = TrainTestSplit(extra, .9)
 
 training = Matrix(training)
 testing= Matrix(testing)
 calib = Matrix(calib)
+
+wordContextVectors = Dict()
+    for i in ProgressBar(1:size(training)[1])
+        if training[i,end] != 0
+            word = get_vector_word[training[i,301:end]]
+            wordContextVectors[word] = append!(get(wordContextVectors, word, []), [training[i,1:300]])
+        end
+    end
+
+wordOccurance = Dict()
+    for x in uni
+        wordOccurance[x] = length(get(wordContextVectors,x,[]))
+    end
+
+a_i = []
+    for i in ProgressBar(1:size(calib)[1])
+    if calib[i,end] != 0
+        word = get_vector_word[calib[i,301:end]]
+        P = get(wordContextVectors, word, 0)
+        if  P != 0
+            X = wordOccurance[word] + 5
+            T = log(X)
+            #push!(a_i, norm(mean(P) - calib[i,1:300]))
+            push!(a_i, minNorm(P,calib[i,1:300])/T)
+        end
+    end
+    end
+
+
+correct = []
+    eff = []
+    epsilon = .05
+    Q = quantile(a_i, 1-epsilon)
+    for i in ProgressBar(1:size(testing)[1])
+    if testing[i,end] != 0
+        pred = []
+        for ii in 1:length(uni)
+            P = get(wordContextVectors, uni[ii], 0)
+            if  P != 0
+                #if norm(mean(P) - testing[i,1:300]) < Q
+                X = wordOccurance[uni[ii]] + 5
+                T = log(X)
+                if minNorm(P,testing[i,1:300])/T <= Q
+                    push!(pred, uni[ii])
+                end
+            end
+        end
+        trueWord = get_vector_word[testing[i,301:end]]
+        push!(correct,trueWord in pred)
+        push!(eff, length(pred))
+        print("         ",1-mean(correct), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
+    end
+    end
+
+function minNorm(P, C)
+    normz = []
+    for p in P
+        push!(normz, norm(p - C))
+    end
+    return minimum(normz)
+end
+
+function meanNorm(P, C)
+    normz = []
+    for p in P
+        push!(normz, norm(p - C))
+    end
+    if length(normz) == 0
+        return 9
+    end
+    return mean(normz)
+end
