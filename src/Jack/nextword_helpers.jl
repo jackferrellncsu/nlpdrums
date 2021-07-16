@@ -77,10 +77,10 @@ function TrainNN!(epochs, loss, nn, opt)
         Flux.train!(loss, ps, trainDL, opt)
         println(i)
         totalLoss = 0
-        # for (x,y) in trainDL
-        #  totalLoss += loss(x,y)
-        #  #println("Total Loss: ", totalLoss)
-        # end
+        for (x,y) in trainDL
+         totalLoss += loss(x,y)
+         #println("Total Loss: ", totalLoss)
+        end
         push!(traceY, totalLoss)
     end
     return traceY
