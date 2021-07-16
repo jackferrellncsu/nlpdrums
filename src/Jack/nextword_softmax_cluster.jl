@@ -9,16 +9,14 @@ using StatsBase
 using BSON
 using CUDA
 
-Pkg.test("CUDA")
-
 include("nextword_helpers.jl")
 
 Random.seed!(26)
 
 obj = load("PridePrej.jld")
-    data = obj["data"]
-    sentences = obj["sentances"]
-    corpus = obj["corpus"]
+    data = obj["data"];
+    sentences = obj["sentances"];
+    corpus = obj["corpus"];
 
 embtable = load("pridePrejEmbs.jld", "embtable")
 
@@ -49,8 +47,8 @@ x_mat = EmbeddingsTensor(data, get_vector_word)[1]
 
 #Split input and output into propertrain/calibration/test
 #split into test, proper_train, calibrate
-train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat)
-proper_train_x, calibrate_x, proper_train_y, calibrate_y = SampleMats(train_x, train_y, .92)
+train_x, test_x, train_y, test_y = SampleMats(x_mat, y_mat) 
+proper_train_x, calibrate_x, proper_train_y, calibrate_y = SampleMats(train_x, train_y, .92) |> gpu
 
 
 #Put inputs and outputs into Flux Dataloader class for NN input
