@@ -10,6 +10,7 @@ using Random
 using StatsBase
 using InvertedIndices
 using BSON
+using StatsPlots
 
 Random.seed!(26)
 #----------Prepare Embeddings---------------------------------------#
@@ -23,6 +24,7 @@ embtable = load("pridePrejEmbs.jld", "embtable")
 get_vector_word = Dict(word=>embtable.embeddings[:,ii] for (ii,word) in enumerate(embtable.vocab))
 #get word from vector
 get_word_vector = Dict(embtable.embeddings[:, ii] => word for (ii, word) in enumerate(embtable.vocab))
+#get index from word
 get_word_index = Dict(word=>ii for (ii, word) in enumerate(embtable.vocab))
 vec_length = length(embtable.embeddings[:, get_word_index["the"]])
 
@@ -280,6 +282,9 @@ end
 
 mean(means)
 
-histogram(means, leg = false)
-title!("Distribution of average distance between all other words")
-png("AvgGloVeDistHist")
+density(means, leg = false, color = :black, fill = (0, 0.5, RGB(254 / 264.0, 0, 0)))
+title!("Distribution of Average Distance Between All Other Words")
+vline!([mean(means)], line = (4, :dash, 0.6, [:blue]), label = "Mean")
+xlabel!("Average Distance Between Given Word and All Others")
+ylabel!("Proportion of Occurences")
+png("AvgGloVeDist_Final")
