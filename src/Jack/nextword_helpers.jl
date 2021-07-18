@@ -73,7 +73,7 @@ Returns a trace plot.
 function TrainNN!(epochs, loss, nn, opt)
     traceY = []
     ps = Flux.params(nn)
-    for i in 1:epochs
+    for i in ProgressBar(1:epochs)
         Flux.train!(loss, ps, trainDL, opt)
         println(i)
         totalLoss = 0

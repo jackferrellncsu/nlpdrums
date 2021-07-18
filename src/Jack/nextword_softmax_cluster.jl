@@ -8,6 +8,8 @@ using Random
 using StatsBase
 using BSON
 using CUDA
+using ProgressBars
+using Plots
 
 include("nextword_helpers.jl")
 
@@ -65,14 +67,20 @@ model = Chain(Flux.flatten,
            softmax) |> gpu
 
 opt = RADAM(1e-4)
-epochs = 30
+epochs = 100
 loss(x, y) = Flux.Losses.crossentropy(model(x), y)
+
 
 trace = TrainNN!(epochs, loss, model, opt)
 
 save("softmod_trace_gpu.jld", "trace", trace)
 
-model |> cpu
+plot(1:epochs, trace)
 
 using BSON: @save
 BSON.@save "softmod_gpu.bson" model
+
+model |> cpu
+
+BSON.@save "softmod_cpu.bson" model
+
