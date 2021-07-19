@@ -61,25 +61,14 @@ trainDL = Flux.Data.DataLoader((proper_train_x, proper_train_y),
 calibrateDL = Flux.Data.DataLoader((calibrate_x, calibrate_y))
 testDL = Flux.Data.DataLoader((test_x, test_y))
 
-model = Chain(Flux.flatten,
-           Dense(1500, 3000),
-           Dense(3000 ,6000, relu),
-           softmax) |> gpu
+BSON.@load "softmod_cpu.bson" model
 
-opt = RADAM(1e-4)
-epochs = 100
-loss(x, y) = Flux.Losses.crossentropy(model(x), y)
+typeof(model)
 
+trace = load("softmod_trace_gpu.jld", "trace")
 
-trace = TrainNN!(epochs, loss, model, opt)
-
-save("softmod_trace_gpu.jld", "trace", trace)
-
-plot(1:epochs, trace)
-
-using BSON: @save
-BSON.@save "softmod_gpu.bson" model
-
-model |> cpu
-
-BSON.@save "softmod_cpu.bson" model
+for (x, y) in testDL
+   ŷ = model(x)
+   print(typeof(ŷ))
+   break
+end
