@@ -70,27 +70,6 @@ end
 # Takes a minute or two
 train_tens_raw, test_tens_raw, calib_tens_raw = split_tensor(tensor, nextword_emb, .9, .9)
 
-function get_onehot(tensor, y_class)
-
-    one_hots = BitArray(undef, 6135, length(tensor[1, end, :]))
-    for i in 1:length(tensor[1, end, :])
-        word = get(embtable_back, tensor[:, end, i], 0)
-        for j in 1:length(next_word)
-            if word == next_word[j]
-                one_hots[:,i] .= y_class[:,j]
-            end
-        end
-        println(i)
-    end
-
-    return one_hots
-end
-
-# Matrices for classification
-train_tens_class = get_onehot(train_tens_raw, y_class)
-test_tens_class = get_onehot(test_tens_raw, y_class)
-calib_tens_class = get_onehot(calib_tens_raw, y_class)
-
 # Tensors for convolution
 train_tens = train_tens_raw[1:300, 1:5, :]
 test_tens = test_tens_raw[1:300, 1:5, :]

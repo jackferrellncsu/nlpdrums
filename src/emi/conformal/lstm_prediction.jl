@@ -38,18 +38,15 @@ data = pride_jld["data"]
 unique_words = [word for word in keys(embedding_table)]
 data = DataFrame(data)
 filter!(row -> row[2] ∈ unique_words, data)
-filter!(row -> length(row[1]) > 2, data)
+#filter!(row -> length(row[1]) > 2, data)
 data = Matrix(data)
 
+# Load in pre sentences and next words
 pre_sentence = data[:, 1]
 next_word = data[:, 2]
 
 # ----------------------- Data Prep for NN ----------------------- #
 
-# Reversing order of each pre-sentence
-for i in 1:length(pre_sentence)
-    pre_sentence[i] = reverse(pre_sentence[i])
-end
 
 # Creating word embeddings for each "next word" after the pre-sentences
 nextword_emb = zeros(300, length(next_word))
@@ -57,41 +54,55 @@ for i in 1:length(next_word)
     nextword_emb[:, i] = get(embedding_table, next_word[i], zeros(300))
     println(i)
 end
-
-# Creating the tensor for the pre-sentence embeddings
-tensor = create_tensor(embedding_table, pre_sentence, 300, 5)
-
-# Splitting tensor into train/test/calib
-train_tens_raw, test_tens_raw, calib_tens_raw = split_tensor(tensor, nextword_emb, .9, .9)
-
-train_tens, train_tens_class = data_class_split(train_tens_raw)
-test_tens, test_tens_class = data_class_split(test_tens_raw)
-calib_tens, calib_tens_class = data_class_split(calib_tens_raw)
-
-# Convolution
-conv_train = mat2vec(convolute_channel(train_tens, 2, relu))
-conv_test = mat2vec(convolute_channel(test_tens, 2, relu))
-conv_calib = mat2vec(convolute_channel(calib_tens, 2, relu))
+nextword_emb = Matrix{Float32}(nextword_emb[:, 2:end])
 
 
+# Creating a corrected length of pre-sentences
+pre_sentence = Matrix{Float32}(nextword_emb[:, 1:end-1])
 
-#=
+# Splitting data into data/class; class is in one-hot representation
+function split_classes(matrix, next_word, length, train_test, train_calib, unique_words)
+
+    # Computing sizes of each set
+    b = matrix[1,:]
+    a = length(b)
+    L = length(matrix[1,:]) * train_test
+    first_train_size = Int(ceil(L))
+    test_size = Int(length(matrix[1,:]) - first_train_size)
+    train_size = Int(ceil(first_train_size * train_calib))
+    calib_size = Int(first_train_size - train_size)
+
+    train = matrix[:, 1:train_size]
+    train_class = create_class(train, next_word, length, unique_words)
+
+    test = matrix[:, train_size+1:train_size+test_size]
+    test_class = create_class(test, next_word, length, unique_words)
+
+    calib = matrix[:, test_size+train_size+1:train_size+test_size+calib_size]
+    calib_class = create_class(calib, next_word, length, unique_words)
+
+    return train, train_class, test, test_class, calib, calib_class
+    end
+    train, train_class, test, test_class, calib, calib_class = split_classes(pre_sentence, next_word, 6135, .9, .9, unique_words)
+
 # Creation of DataLoader objects
-dl_calib = Flux.Data.DataLoader((conv_calib, calib_tens_class))
-dl_test = Flux.Data.DataLoader((conv_test, test_tens_class))
-dl_train = Flux.Data.DataLoader((conv_train, train_tens_class),
-                                    batchsize = 100, shuffle = true)
-=#
+dl_calib = Flux.Data.DataLoader((calib, calib_class))
+dl_test = Flux.Data.DataLoader((test, test_class))
+dl_train = Flux.Data.DataLoader((train, train_class),
+                                    batchsize = 1709, shuffle = false)
+
 
 # ----------------------- Neural Net ----------------------- #
 
 # Layers of rnn
-L1 = length(conv_train[1])
+L1 = 300
 LE = 6135
+
 # Neural Net Architecture
 rnn = Chain(
-    Flux.GRU(L1, 1000),
-    Dense(1000, LE, relu),
+    Flux.LSTM(L1, 2000),
+    Flux.LSTM(2000, 2000),
+    Dense(2000, LE, relu),
     softmax)
 
 # Optimizer
@@ -102,24 +113,29 @@ ps = Flux.params(rnn)
 
 # Loss Function
 function loss(x, y)
-    Flux.reset!(rnn)
-    return Flux.Losses.crossentropy(rnn.(x), y)
+    return Flux.Losses.crossentropy(rnn(x), y)
 end
-
-evalcb() = @show(sum(loss.(conv_test, test_tens_class)))
 
 # Training the Neural Net, Tracking Loss Progression
-totalLoss = []
+epochs = 5
 traceY = []
-for i in ProgressBar(1:5)
-    Flux.train!(loss, ps, zip(conv_train, train_tens_class), opt)
-    totalLoss = 0
-    for (x,y) in dl_train
-        totalLoss += loss(x,y)
-    end
-    push!(traceY, totalLoss)
+for i in 1:epochs
+    println("Starting epoch #", i, " ...")
+    Flux.reset!(rnn)
+    Flux.train!(loss, ps, dl_train, opt)
+    Flux.reset!(rnn)
+    L = sum(loss.(eachcol(pre_sentence[:,1:5]), eachcol(y_class[:,1:5])))
+    push!(traceY, L)
 end
+
+JLD.save("dl_calib.jld", "dl_calib", dl_calib)
+JLD.save("dl_test.jld", "dl_test", dl_test)
+JLD.save("dl_train.jld", "dl_train", dl_train)
 
 # Saving Model
 using BSON: @save
-@save "rnn.bson" rnn
+@save "rnn_five_epoch.bson" rnn
+
+# Conformal predictions
+setto = Vector{String}()
+setto = inductive_conformal(rnn, 0.05, dl_test)
