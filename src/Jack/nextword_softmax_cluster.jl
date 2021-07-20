@@ -63,11 +63,12 @@ testDL = Flux.Data.DataLoader((test_x, test_y))
 
 model = Chain(Flux.flatten,
            Dense(1500, 3000),
-           Dense(3000 ,6000, relu),
+           Dense(3000 ,length(unique_words), relu),
            softmax) |> gpu
 
 opt = RADAM(1e-4)
-epochs = 100
+
+epochs = 30
 loss(x, y) = Flux.Losses.crossentropy(model(x), y)
 
 
@@ -80,6 +81,9 @@ plot(1:epochs, trace)
 using BSON: @save
 BSON.@save "softmod_gpu.bson" model
 
-model |> cpu
+model = model |> cpu
 
 BSON.@save "softmod_cpu.bson" model
+
+
+
