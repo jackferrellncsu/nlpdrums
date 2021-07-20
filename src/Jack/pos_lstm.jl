@@ -12,4 +12,5 @@ act_word, act_pos, new_sentences = word_masker(sentences, pos_tags)
 unique_words = get_uniques(sentences)
 
 
-embtable = load_embeddings(GloVe{:en}, 6, keep_words = unique_words)
+#embtable = load_embeddings(GloVe{:en}, 6, keep_words = unique_words)
+#JLD.save("posEmbs.jld", "embtable", embtable)
