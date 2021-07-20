@@ -11,6 +11,9 @@ using SparseArrays
     using ProgressBars
     using StatsBase
     using Plots
+    using Transformers
+    using Transformers.Basic
+    using Transformers.Pretrain
 
 """
     makeCorpus(filename<String>)
@@ -63,8 +66,10 @@ function splitCorpus(corp, minSize)
     spl = convert(Vector{String},split(corp, "."))
     for i in ProgressBar(1:length(spl))
         sent = convert(Vector{String},split(spl[i], " "))
-        push!(vectorizedSpl, append!(sent, [String(".")]))
+        sent = sent .* " "
+        push!(vectorizedSpl, vcat(sent, [String(".")]))
         vectorizedSpl[i] = filter(x->x≠"",vectorizedSpl[i])
+        vectorizedSpl[i] = filter(x->x≠" ",vectorizedSpl[i])
     end
     return vectorizedSpl
 end
@@ -95,65 +100,51 @@ end
 takes in output from permuteSentances, a dictionary of embeddings an a ratio of incorrect examples to create the data set
 
 """
-function makeData(sentances, nextword, get_word_index, incorrects)
-
+function makeDataByWord(sentances, nextword, bert_model, wordpiece, tokenizer, vocab)
     sentancesVecs = []
     nextwordVecs = []
     for i in ProgressBar(1:length(sentances))
-        if isnan(toEmbedding(sentances[i],get_word_index)[1]) != 1 &&
-            isnan(toEmbedding([nextword[i]],get_word_index)[1]) != 1#&&
-            zeros(300) != toEmbedding([nextword[i]],get_word_index) &&
-            zeros(300) != toEmbedding(sentances[i],get_word_index)
 
-                push!(sentancesVecs, toEmbedding(sentances[i],get_word_index))
-                push!(nextwordVecs, toEmbedding([nextword[i]],get_word_index))
-        end
+        text1 = join(sentances[i]) |> tokenizer |> wordpiece
+
+        text = ["[CLS]"; text1; "[SEP]"]
+
+        token_indices = vocab(text)
+        segment_indices = [fill(1, length(text1)+2);]
+
+        sample = (tok = token_indices, segment = segment_indices)
+
+        bert_embedding = sample |> bert_model.embed
+        feature_tensors = bert_embedding |> bert_model.transformers
+
+        push!(sentancesVecs, feature_tensors[:,1])
+
+        text1 = join(nextword[i]) |> tokenizer |> wordpiece
+
+
+        text = ["[CLS]"; text1; "[SEP]";]
+
+        token_indices = vocab(text)
+        segment_indices = [fill(1, length(text1)+2);]
+
+        sample = (tok = token_indices, segment = segment_indices)
+
+        bert_embedding = sample |> bert_model.embed
+        feature_tensors = bert_embedding |> bert_model.transformers
+
+        push!(nextwordVecs,feature_tensors[:,1])
     end
 
-    temp = vcat.(sentancesVecs,nextwordVecs)
-    sentancesVecs = temp
-
-    bogusNextWord = []
-    counter = 0
-    while length(bogusNextWord) < incorrects*length(sentancesVecs)
-        if length(bogusNextWord) % length(sentancesVecs) == 0
-            println(length(bogusNextWord) / (incorrects*length(sentancesVecs)))
-        end
-
-        W = get(get_word_index,rand(uni),zeros(300))
-        if  isnan(W[1]) != 1 && zeros(300) != W && norm(W-sentancesVecs[(counter % length(sentancesVecs))+1][301:600]) > 6
-            Context = sentancesVecs[(counter % length(sentancesVecs))+1][1:300]
-            counter += 1
-            push!(bogusNextWord, vcat(Context, W))
-        end
-    end
-
-    len = length(sentancesVecs)
-
-    println("Made Data")
-
-    append!(sentancesVecs,bogusNextWord)
-
-    println("Concatanated Data")
-
-    resp = Int.(vcat(ones(Int(length(sentancesVecs)/(incorrects+1))),zeros(Int(incorrects*length(sentancesVecs)/(incorrects+1)))))
-    mat = vecvec_to_matrix(sentancesVecs,resp)
-    return mat,resp
+    return [sentancesVecs,nextwordVecs]
 end
 
 function toEmbedding(words, Embeddings)
     default = zeros(length(Embeddings["the"]))
-    #weight = 1/2^(length(words)-1)
-    weight = 1/2
-    #V = 1 .* get(Embeddings,words[1],default)
-    V = 1 .* get(Embeddings,words[end],default)
-    #for (i,x) in zip(1:length(words[2:end]), words[2:end])
-    for (i,x) in zip(1:length(words[2:end]), reverse(words[2:end-1]))
-        if i >= 3
-            V = V .+ weight .* get(Embeddings,x,default)
-            weight /= 2
-            #weight *= 2
-        end
+    weight = 1/2^(length(words)-1)
+    V = weight .* get(Embeddings,words[1],default)
+    for x in words[2:end]
+        V = V .+ weight .* get(Embeddings,x,default)
+        weight *= 2
     end
 
     return convert(Vector{Float32},V)
@@ -175,7 +166,23 @@ function vecvec_to_matrix(vecvec,resp)
     return my_array
 end
 
-#------------------------
+function vecvec_to_matrix(vecvec)
+    dim1 = length(vecvec)
+    dim2 = length(vecvec[1])
+    my_array = zeros(Float32, dim1, dim2)
+    for i in ProgressBar(1:dim1)
+        for j in 1:dim2
+                my_array[i,j] = vecvec[i][j]
+        end
+    end
+    return my_array
+end
+
+
+ENV["DATADEPS_ALWAYS_ACCEPT"] = true
+
+bert_model, wordpiece, tokenizer = pretrain"bert-uncased_L-12_H-768_A-12"
+
 Corp = makeCorpus("/Users/mlovig/Downloads/1342-0.txt")
 
 vectorizedSpl = splitCorpus(Corp,10)
@@ -196,13 +203,15 @@ get_vector_word = Dict(embtable.embeddings[:,ii]=>word for (ii,word) in enumerat
 
 #JLD.save("PridePrej.jld", "corpus", corp, "sentances", vectorizedSpl, "data", hcat(sentances,nextword), "embeddings", get_word_index)
 
-S,N = permuteSentances(vectorizedSpl,3)
-SS = vcat.(S,N)
-SSC = countmap(SS)
-SSCA = [v for (k,v) in SSC]
-mat,resp = makeData(S,N, get_word_index, 0)
-mat = mat[:,1:end-1]
+S,N = permuteSentances(vectorizedSpl,1)
 
+vocab = Vocabulary(wordpiece)
+
+BERTEMB = makeDataByWord(S,N,bert_model, wordpiece, tokenizer, vocab)
+
+SentanceEmbedings = vecvec_to_matrix(BERTEMB[1])
+nextWordEmbedings = vecvec_to_matrix(BERTEMB[2])
+mat = hcat(SentanceEmbedings,nextWordEmbedings)
 df = DataFrame(mat)
 
 training,extra = TrainTestSplit(df, .9)
@@ -212,74 +221,43 @@ training = Matrix(training)
 testing= Matrix(testing)
 calib = Matrix(calib)
 
-wordContextVectors = Dict()
-    for i in ProgressBar(1:size(training)[1])
-        if training[i,end] != 0
-            word = get_vector_word[training[i,301:end]]
-            wordContextVectors[word] = append!(get(wordContextVectors, word, []), [training[i,1:300]])
-        end
-    end
+regnet = Chain(
+    Dense(768, 300, gelu),
+    Dense(300, 300, gelu),
+    Dense(300, 300, gelu),
+    Dense(300, 300,  gelu),
+    Dense(300, 768,  x -> x))
+    ps = Flux.params(regnet)
 
-wordOccurance = Dict()
-    for x in uni
-        wordOccurance[x] = length(get(wordContextVectors,x,[]))
-    end
-
-a_i = []
-    for i in ProgressBar(1:size(calib)[1])
-    if calib[i,end] != 0
-        word = get_vector_word[calib[i,301:end]]
-        P = get(wordContextVectors, word, 0)
-        if  P != 0
-            X = wordOccurance[word] + 5
-            T = log(X)
-            #push!(a_i, norm(mean(P) - calib[i,1:300]))
-            push!(a_i, minNorm(P,calib[i,1:300])/T)
-        end
-    end
-    end
-PPP = []
-correct = []
-    eff = []
-    epsilon = .7
-    Q = quantile(a_i, 1-epsilon)
-    for i in ProgressBar(1:size(testing)[1])
-    if testing[i,end] != 0 && testing[i,301:600] == get_word_index["elizabeth"]
-        pred = []
-        for ii in 1:length(uni)
-            P = get(wordContextVectors, uni[ii], 0)
-            if  P != 0
-                #if norm(mean(P) - testing[i,1:300]) < Q
-                X = wordOccurance[uni[ii]] + 5
-                T = log(X)
-                if minNorm(P,testing[i,1:300])/T <= Q
-                    push!(pred, uni[ii])
-                end
-            end
-        end
-        trueWord = get_vector_word[testing[i,301:600]]
-        push!(correct,trueWord in pred)
-        push!(eff, length(pred))
-        PPP = pred
-        print("         ",1-mean(correct), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
-    end
-    end
-
-function minNorm(P, C)
-    normz = []
-    for p in P
-        push!(normz, norm(p - C))
-    end
-    return minimum(normz)
+function loss(x, y)
+    return norm(regnet(x) - y)
 end
 
-function meanNorm(P, C)
-    normz = []
-    for p in P
-        push!(normz, norm(p - C))
+losses = []
+batch  = 1000
+epochs = 50
+eta = .00005
+opt = RADAM(eta)
+
+for i in 1:epochs
+    training = training[shuffle(1:end), :]
+    vecsvecsx = []
+    for i in ProgressBar(1:size(training)[1])
+        push!(vecsvecsx, training[i, 1:768])
     end
-    if length(normz) == 0
-        return 9
+    vecsvecsy = []
+    for i in ProgressBar(1:size(training)[1])
+        push!(vecsvecsy, training[i, 769:end])
     end
-    return mean(normz)
+    for ii in ProgressBar(1:Int(floor(length(vecsvecsx)/batch)))
+        if ii%10 == 9
+            opt = RADAM(eta)
+            eta = eta*.85
+        end
+        L = sum(loss.(vecsvecsx[(ii-1) * batch + 1:ii*batch], vecsvecsy[(ii-1) * batch + 1:ii*batch]))
+        Flux.train!(loss, ps, zip(vecsvecsx[(ii-1) * batch + 1:ii*batch], vecsvecsy[(ii-1) * batch + 1:ii*batch]), opt)
+        push!(losses, L/batch)
+
+        print("         ", L/batch)
+    end
 end
