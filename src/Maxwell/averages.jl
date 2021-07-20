@@ -145,7 +145,7 @@ function toEmbedding(words, Embeddings)
     default = zeros(length(Embeddings["the"]))
     #weight = 1/2^(length(words)-1)
     weight = 1/2
-    #V = 1 .* get(Embeddings,words[1],default)
+    #V = weight .* get(Embeddings,words[1],default)
     V = 1 .* get(Embeddings,words[end],default)
     #for (i,x) in zip(1:length(words[2:end]), words[2:end])
     for (i,x) in zip(1:length(words[2:end]), reverse(words[2:end-1]))
@@ -196,7 +196,7 @@ get_vector_word = Dict(embtable.embeddings[:,ii]=>word for (ii,word) in enumerat
 
 #JLD.save("PridePrej.jld", "corpus", corp, "sentances", vectorizedSpl, "data", hcat(sentances,nextword), "embeddings", get_word_index)
 
-S,N = permuteSentances(vectorizedSpl,3)
+S,N = permuteSentances(vectorizedSpl,1)
 SS = vcat.(S,N)
 SSC = countmap(SS)
 SSCA = [v for (k,v) in SSC]
@@ -231,9 +231,10 @@ a_i = []
         word = get_vector_word[calib[i,301:end]]
         P = get(wordContextVectors, word, 0)
         if  P != 0
-            X = wordOccurance[word] + 5
+            X = wordOccurance[word]
             T = log(X)
             #push!(a_i, norm(mean(P) - calib[i,1:300]))
+            #push!(a_i, minNorm(P,calib[i,1:300]))
             push!(a_i, minNorm(P,calib[i,1:300])/T)
         end
     end
@@ -241,17 +242,18 @@ a_i = []
 PPP = []
 correct = []
     eff = []
-    epsilon = .7
+    epsilon = .1
     Q = quantile(a_i, 1-epsilon)
     for i in ProgressBar(1:size(testing)[1])
-    if testing[i,end] != 0 && testing[i,301:600] == get_word_index["elizabeth"]
+    if testing[i,end] != 0
         pred = []
         for ii in 1:length(uni)
             P = get(wordContextVectors, uni[ii], 0)
             if  P != 0
-                #if norm(mean(P) - testing[i,1:300]) < Q
-                X = wordOccurance[uni[ii]] + 5
+                X = wordOccurance[uni[ii]]
                 T = log(X)
+                #if norm(mean(P) - testing[i,1:300]) <= Q
+                #if minNorm(P,testing[i,1:300]) <= Q
                 if minNorm(P,testing[i,1:300])/T <= Q
                     push!(pred, uni[ii])
                 end
@@ -261,7 +263,7 @@ correct = []
         push!(correct,trueWord in pred)
         push!(eff, length(pred))
         PPP = pred
-        print("         ",1-mean(correct), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
+        print("         ",1-mean(correct),"         ", mean(eff), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
     end
     end
 
