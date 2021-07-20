@@ -1,9 +1,9 @@
 #!/bin/tcsh
 #BSUB -n 4
-#BSUB -R "select[rtx2080 || gtx1080 || p100 || k20m]"
+#BSUB -R "select[gtx1080]"
 #BSUB -q gpu
 #BSUB -gpu "num=1:mode=shared:mps=yes"
-#BSUB -J test
+#BSUB -J nlpgroup
 #BSUB -W 24:00
 #BSUB -oo /share/hmmrs/jferrel3/NLP/results.%J
 #BSUB -e /share/hmmrs/jferrel3/NLP/errors.%J

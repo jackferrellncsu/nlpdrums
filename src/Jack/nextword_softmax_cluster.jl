@@ -76,7 +76,7 @@ trace = TrainNN!(epochs, loss, model, opt)
 
 save("softmod_trace_gpu.jld", "trace", trace)
 
-plot(1:epochs, trace)
+#plot(1:epochs, trace)
 
 using BSON: @save
 BSON.@save "softmod_gpu.bson" model
@@ -84,6 +84,3 @@ BSON.@save "softmod_gpu.bson" model
 model = model |> cpu
 
 BSON.@save "softmod_cpu.bson" model
-
-
-
