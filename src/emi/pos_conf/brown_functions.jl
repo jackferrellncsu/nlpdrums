@@ -27,3 +27,153 @@ function word_masker(sentences, tags)
     end
     return act_word, act_pos, sentences
 end
+
+function data_cleaner(raw_sentences)
+
+    raw_tags = []
+    raw_words = []
+    for sent in raw_sentences
+        raw_tags_temp = []
+        raw_words_temp = []
+        for word in sent
+            ind = findlast(x -> x == '/', word)
+            pos = word[ind+1:end]
+            pos = replace(pos, "-tl" => "")
+            pos = replace(pos, "-hl" => "")
+            pos = replace(pos, "fw-" => "")
+            pos = replace(pos, "-nc" => "")
+            pos = replace(pos, "bez" => "bbb")
+            push!(raw_tags_temp, convert(String, pos))
+            push!(raw_words_temp, lowercase(word[1:ind-1]))
+        end
+        push!(raw_tags, raw_tags_temp)
+        push!(raw_words, raw_words_temp)
+    end
+
+    individual_tags = []
+    for i in 1:length(raw_tags)
+        for j in 1:length(raw_tags[i])
+            push!(individual_tags, (raw_tags[i][j]))
+        end
+    end
+
+    tagger = unique!(individual_tags)
+
+    return tagger, raw_words, raw_tags
+end
+
+function get_word_vec(sentences)
+
+    words = Vector{String}()
+    for i in 1:length(sentences)
+        for j in 1:length(sentences[i])
+            push!(words, sentences[i][j])
+        end
+    end
+    return words
+end
+
+function get_keys(dict)
+
+    keys = []
+    for i in keys(dict)
+        push!(keys, i)
+    end
+    return keys
+end
+
+function create_embeddings(masked_word, masked_pos, new_sentences, dict)
+
+    # Finds indices of masked words for each sentence
+    masked_ind = []
+    for i in 1:length(new_sentences)
+        for j in 1:length(new_sentences[i])
+            if new_sentences[i][j] == "/MASK/"
+                push!(masked_ind, j)
+            end
+        end
+    end
+
+    # Embeddings of masked words, not needed
+    masked_embeddings = Vector{Vector{Float32}}()
+    for i in 1:length(masked_word)
+        push!(masked_embeddings, get(dict, masked_word[i], zeros(300)))
+    end
+
+    # Embeddings for each sentence
+    sentence_emb = []
+    for i in 1:length(new_sentences)
+        temp = []
+        for j in 1:length(new_sentences[i])
+            push!(temp, get(dict, new_sentences[i][j], zeros(300)))
+        end
+        push!(sentence_emb, temp)
+    end
+
+    # Sentence embeddings before masked word
+    # In order of first word in sentence up to word right before masked word
+    pre_sentence_embs = []
+    for i in 1:length(sentence_emb)
+        temp = []
+        for j in 1:masked_ind[i]-1
+            push!(temp, sentence_emb[i][j])
+        end
+        push!(pre_sentence_embs, temp)
+    end
+
+    # Sentence embeddings after masked word
+    # In order of last word in sentence up to word right after masked word
+    post_sentence_embs = []
+    for i in 1:length(sentence_emb)
+        temp = []
+        for j in masked_ind[i]+1:length(sentence_emb[i])
+            push!(temp, sentence_emb[i][j])
+        end
+        temp = reverse(temp)
+        push!(post_sentence_embs, temp)
+    end
+
+    return masked_ind, masked_embeddings, sentence_emb, pre_sentence_embs, post_sentence_embs
+end
+
+function splitter(sent_emb, onehot_vecs, train_test, train_calib)
+
+    # Computing sizes of each set
+    first_train_size = Int(ceil(Base.length(sent_emb) .* train_test))
+    test_size = Int(Base.length(sent_emb) - first_train_size)
+    train_size = Int(ceil(first_train_size * train_calib))
+    calib_size = Int(first_train_size - train_size)
+
+    train = []
+    train_class = []
+    train_ind = sample(1:Base.length(sent_emb), train_size, replace = false)
+    for i in 1:length(train_ind)
+        push!(train, sent_emb[train_ind[i]])
+        push!(train_class, onehot_vecs[train_ind[i]])
+    end
+    train = convert(Vector{Vector{Vector{Float32}}}, train)
+    train_class = convert(Vector{Vector{Float32}}, train_class)
+
+    test = []
+    test_class = []
+    test_ind = sample(1:Base.length(sent_emb), test_size, replace = false)
+    for i in 1:length(test_ind)
+        push!(test, sent_emb[test_ind[i]])
+        push!(test_class, onehot_vecs[test_ind[i]])
+    end
+    test = convert(Vector{Vector{Vector{Float32}}}, test)
+    test_class = convert(Vector{Vector{Float32}}, test_class)
+
+
+    calib = []
+    calib_class = []
+    calib_ind = sample(1:Base.length(sent_emb), calib_size, replace = false)
+    for i in 1:length(calib_ind)
+        push!(calib, sent_emb[test_ind[i]])
+        push!(calib_class, onehot_vecs[calib_ind[i]])
+    end
+    calib = convert(Vector{Vector{Vector{Float32}}}, calib)
+    calib_class = convert(Vector{Vector{Float32}}, calib_class)
+
+    return train, train_class, test, test_class, calib, calib_class
+end

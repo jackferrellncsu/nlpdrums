@@ -61,29 +61,7 @@ nextword_emb = Matrix{Float32}(nextword_emb[:, 2:end])
 pre_sentence = Matrix{Float32}(nextword_emb[:, 1:end-1])
 
 # Splitting data into data/class; class is in one-hot representation
-function split_classes(matrix, next_word, length, train_test, train_calib, unique_words)
-
-    # Computing sizes of each set
-    b = matrix[1,:]
-    a = length(b)
-    L = length(matrix[1,:]) * train_test
-    first_train_size = Int(ceil(L))
-    test_size = Int(length(matrix[1,:]) - first_train_size)
-    train_size = Int(ceil(first_train_size * train_calib))
-    calib_size = Int(first_train_size - train_size)
-
-    train = matrix[:, 1:train_size]
-    train_class = create_class(train, next_word, length, unique_words)
-
-    test = matrix[:, train_size+1:train_size+test_size]
-    test_class = create_class(test, next_word, length, unique_words)
-
-    calib = matrix[:, test_size+train_size+1:train_size+test_size+calib_size]
-    calib_class = create_class(calib, next_word, length, unique_words)
-
-    return train, train_class, test, test_class, calib, calib_class
-    end
-    train, train_class, test, test_class, calib, calib_class = split_classes(pre_sentence, next_word, 6135, .9, .9, unique_words)
+train, train_class, test, test_class, calib, calib_class = split_classes(pre_sentence, next_word, 6135, .9, .9, unique_words)
 
 # Creation of DataLoader objects
 dl_calib = Flux.Data.DataLoader((calib, calib_class))

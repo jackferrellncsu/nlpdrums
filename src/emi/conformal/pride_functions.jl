@@ -450,8 +450,8 @@ end
 function create_class(matrix, next_word, length, unique_words)
 
     next_word = next_word[2:end]
-    class = BitArray(undef, length, length(next_word[1:length(matrix[1,:])]))
-    for i in 1:length(matrix[1,:])
+    class = BitArray(undef, length, Base.length(next_word[1:Base.length(matrix[1,:])]))
+    for i in 1:Base.length(matrix[1,:])
         class[:, i]  = (Flux.onehot(next_word[i], unique_words) .== 1)
     end
     return class
@@ -460,8 +460,8 @@ end
 function split_classes(matrix, next_word, length, train_test, train_calib, unique_words)
 
     # Computing sizes of each set
-    first_train_size = Int(ceil(length(matrix[1,:]) .* train_test))
-    test_size = Int(length(matrix[1,:]) - first_train_size)
+    first_train_size = Int(ceil(Base.length(matrix[1,:]) .* train_test))
+    test_size = Int(Base.length(matrix[1,:]) - first_train_size)
     train_size = Int(ceil(first_train_size * train_calib))
     calib_size = Int(first_train_size - train_size)
 
