@@ -47,36 +47,44 @@ masked_word, masked_pos, new_sentences = word_masker(sentences, sentence_tags)
 # sent_emb - the embeddings of each word in every sentence
 # pre_sent_embs - the embeddings of the sentence up to the masked word
 # post_sent_embs - the embeddings of the sentence after the masked word
-mask_ind, mask_emb, sent_emb = create_embeddings(masked_word,
+mask_ind, mask_emb, sent_emb, pre_sent_embs,
+                    post_sent_embs = create_embeddings(masked_word,
                     masked_pos, new_sentences, embtable)
 
+# Making sentence embeddings a Float 32 vecvecvec
 sent_emb = convert(Vector{Vector{Vector{Float32}}}, sent_emb)
 
+# Making one hot vectors
 onehot_vecs = []
 onehot_vecs = convert(Vector{Vector{Float32}}, onehot_vecs)
-
 for i in 1:length(masked_pos)
     push!(onehot_vecs, Flux.onehot(masked_pos[i], unique_pos))
 end
 
+# Splitting data and classes into train/test/calib
 train, train_class, test, test_class, calib,
                 calib_class = splitter(sent_emb, onehot_vecs, .9, .9)
 
+# Creating dataloaders for train/test/calib
 dl_calib = Flux.Data.DataLoader((calib, calib_class))
 dl_test = Flux.Data.DataLoader((test, test_class))
-dl_train = Flux.Data.DataLoader((train[1:100], train_class[1:100]),
+dl_train = Flux.Data.DataLoader((train, train_class),
                                     batchsize = 10000, shuffle = true)
 
-
+# Neural Net Architecture
 forward = LSTM(300, 150)
 backward = LSTM(300, 150)
 embedding = Dense(300, 300)
 predictor = Chain(Dense(300, 250, relu), Dense(250,190), softmax)
 
+# BLSTM layer, does the LSTM both forward and backward
 BLSTM(x) = vcat(forward.(x)[end], backward.(reverse(x))[end])
 
+# Maps the BLSTM layer to a 300 length vector representing the embedding
+# of the masked word. This gets updated each training epoch.
 vectorizer(x) = embedding(BLSTM(x))
 
+#
 model(x) = predictor(vectorizer(x))
 
 # Optimizer
@@ -93,7 +101,7 @@ end
 
 
 # Training the Neural Net, Tracking Loss Progression
-epochs = 1
+epochs = 5
 traceY = []
 for i in ProgressBar(1:epochs)
     Flux.train!(loss, ps, dl_train, opt)
