@@ -46,9 +46,11 @@ function makeCorpus(filename)
         corp =replace(corp, "—" => " ")
         corp =replace(corp, "-" => " ")
         corp =replace(corp, "—" => " ")
+        corp =replace(corp, "'" => "")
         corp =replace(corp, ". . ." => " ")
         corp =replace(corp, "*" => " ")
         corp =replace(corp, "’’" => " ")
+        corp =replace(corp, "’" => "")
     return corp
 end
 
@@ -67,7 +69,7 @@ function splitCorpus(corp, minSize)
     for i in ProgressBar(1:length(spl))
         sent = convert(Vector{String},split(spl[i], " "))
         sent = sent .* " "
-        push!(vectorizedSpl, vcat(sent, [String(".")]))
+        push!(vectorizedSpl, vcat(sent, [String(". ")]))
         vectorizedSpl[i] = filter(x->x≠"",vectorizedSpl[i])
         vectorizedSpl[i] = filter(x->x≠" ",vectorizedSpl[i])
     end
@@ -100,7 +102,7 @@ end
 takes in output from permuteSentances, a dictionary of embeddings an a ratio of incorrect examples to create the data set
 
 """
-function makeDataByWord(sentances, nextword, bert_model, wordpiece, tokenizer, vocab)
+function makeDataByWord(sentances, nextword, bert_model, wordpiece, tokenizer, vocab, uni)
     sentancesVecs = []
     nextwordVecs = []
     for i in ProgressBar(1:length(sentances))
@@ -118,7 +120,7 @@ function makeDataByWord(sentances, nextword, bert_model, wordpiece, tokenizer, v
         feature_tensors = bert_embedding |> bert_model.transformers
 
         push!(sentancesVecs, feature_tensors[:,1])
-
+        #=
         text1 = join(nextword[i]) |> tokenizer |> wordpiece
 
 
@@ -133,6 +135,8 @@ function makeDataByWord(sentances, nextword, bert_model, wordpiece, tokenizer, v
         feature_tensors = bert_embedding |> bert_model.transformers
 
         push!(nextwordVecs,feature_tensors[:,1])
+        =#
+        push!(nextwordVecs,nextword[i])
     end
 
     return [sentancesVecs,nextwordVecs]
@@ -194,6 +198,7 @@ wordspl = filter(x->(x≠"" && x≠"."),wordspl)
 #wordspl = wordspl[1:findall(x -> x == ".***", wordspl)[1]-1]
 
 uni = convert(Vector{String},unique(wordspl))
+append!(uni, ["."])
 D = Dict(1:length(uni) .=> uni)
 
 embtable = load_embeddings(GloVe{:en},4, keep_words=Set(uni))
@@ -203,14 +208,21 @@ get_vector_word = Dict(embtable.embeddings[:,ii]=>word for (ii,word) in enumerat
 
 #JLD.save("PridePrej.jld", "corpus", corp, "sentances", vectorizedSpl, "data", hcat(sentances,nextword), "embeddings", get_word_index)
 
-S,N = permuteSentances(vectorizedSpl,1)
+S,N = permuteSentances(vectorizedSpl,3)
 
 vocab = Vocabulary(wordpiece)
 
-BERTEMB = makeDataByWord(S,N,bert_model, wordpiece, tokenizer, vocab)
+BERTEMB = makeDataByWord(S,N,bert_model, wordpiece, tokenizer, vocab, uni)
 
 SentanceEmbedings = vecvec_to_matrix(BERTEMB[1])
-nextWordEmbedings = vecvec_to_matrix(BERTEMB[2])
+
+uni = unique(BERTEMB[2])
+onehots = []
+for x in BERTEMB[2]
+    push!(onehots, Flux.onehot(x,uni))
+end
+
+nextWordEmbedings = vecvec_to_matrix(onehots)
 mat = hcat(SentanceEmbedings,nextWordEmbedings)
 df = DataFrame(mat)
 
@@ -222,42 +234,43 @@ testing= Matrix(testing)
 calib = Matrix(calib)
 
 regnet = Chain(
-    Dense(768, 300, gelu),
-    Dense(300, 300, gelu),
-    Dense(300, 300, gelu),
-    Dense(300, 300,  gelu),
-    Dense(300, 768,  x -> x))
+    Dense(768, 1000, gelu),
+    Dense(1000, 3000, gelu),
+    Dense(3000, 3000, gelu),
+    Dense(3000, 6628,  x -> x), softmax)
     ps = Flux.params(regnet)
 
 function loss(x, y)
-    return norm(regnet(x) - y)
+    return sum(Flux.Losses.crossentropy(regnet(x),y))
 end
 
 losses = []
 batch  = 1000
 epochs = 50
-eta = .00005
+eta = .1
 opt = RADAM(eta)
+DL = Flux.Data.DataLoader(((training[:,1:768])',(training[:,769:end])'), batchsize = 100000, shuffle = true)
+for i in ProgressBar(1:epochs)
+    opt = RADAM()
+    Flux.train!(loss, ps, DL, opt)
 
-for i in 1:epochs
-    training = training[shuffle(1:end), :]
-    vecsvecsx = []
-    for i in ProgressBar(1:size(training)[1])
-        push!(vecsvecsx, training[i, 1:768])
-    end
-    vecsvecsy = []
-    for i in ProgressBar(1:size(training)[1])
-        push!(vecsvecsy, training[i, 769:end])
-    end
-    for ii in ProgressBar(1:Int(floor(length(vecsvecsx)/batch)))
-        if ii%10 == 9
-            opt = RADAM(eta)
-            eta = eta*.85
-        end
-        L = sum(loss.(vecsvecsx[(ii-1) * batch + 1:ii*batch], vecsvecsy[(ii-1) * batch + 1:ii*batch]))
-        Flux.train!(loss, ps, zip(vecsvecsx[(ii-1) * batch + 1:ii*batch], vecsvecsy[(ii-1) * batch + 1:ii*batch]), opt)
-        push!(losses, L/batch)
-
-        print("         ", L/batch)
-    end
+    L = sum(loss.(eachrow(training[1:1000,1:768]), eachrow(training[1:1000,769:end])))
+    push!(losses,L)
+    print("         ", L, "        ", sum(regnet(training[1,1:768])[end] .* training[1,769:end]),"       ")
 end
+
+a_i = zeros(size(calib)[1])
+    for i in ProgressBar(1:size(calib)[1])
+        a_i[i] = (1 - sum(regnet(calib[i,1:768]) .* calib[i,769:end]))
+    en
+
+correct = []
+        eff = []
+        epsilon = .05
+        Q = quantile(a_i,1-epsilon)
+        for ii in ProgressBar(1:length(testingX))
+            Pred = (1 .- regnet(testing[ii, 1:768])) .< Q
+            push!(correct, Flux.onecold(calib[ii,769:end], uni) in uni[Pred])
+            push!(eff, sum(Pred))
+        end
+        print("          ", 1-mean(correct), "         ", median(eff), "         ",quantile(eff, .9) - quantile(eff, .1), "           ")

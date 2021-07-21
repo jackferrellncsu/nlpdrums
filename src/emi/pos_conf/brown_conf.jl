@@ -65,7 +65,7 @@ train, train_class, test, test_class, calib,
 
 dl_calib = Flux.Data.DataLoader((calib, calib_class))
 dl_test = Flux.Data.DataLoader((test, test_class))
-dl_train = Flux.Data.DataLoader((train, train_class),
+dl_train = Flux.Data.DataLoader((train[1:10], train_class[1:10]),
                                     batchsize = 10000, shuffle = true)
 
 
@@ -89,11 +89,7 @@ ps = Flux.params((forward, backward, embedding, predictor))
 # Loss
 function loss(x, y)
     Flux.reset!((forward, backward))
-    L = Flux.Losses.crossentropy(model(x), y)
-    if isnan(L)
-        return 0
-    end
-    return L
+    return sum(Flux.Losses.crossentropy.(model.(x), y))
 end
 
 
@@ -104,7 +100,7 @@ for i in 1:epochs
     println("Starting epoch #", i, " ...")
     Flux.train!(loss, ps, dl_train, opt)
     Flux.reset!((forward, backward))
-    L = sum(loss.(sent_emb[1:100], onehot_vecs[1:100]))
+    L = sum(loss(sent_emb[1:100], onehot_vecs[1:100]))
     push!(traceY, L)
     for ii in length(sent_emb)
         Flux.reset!((forward, backward))

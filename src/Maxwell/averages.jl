@@ -231,7 +231,7 @@ a_i = []
         word = get_vector_word[calib[i,301:end]]
         P = get(wordContextVectors, word, 0)
         if  P != 0
-            X = wordOccurance[word]
+            X = wordOccurance[word]+4
             T = log(X)
             #push!(a_i, norm(mean(P) - calib[i,1:300]))
             #push!(a_i, minNorm(P,calib[i,1:300]))
@@ -242,7 +242,7 @@ a_i = []
 PPP = []
 correct = []
     eff = []
-    epsilon = .1
+    epsilon = .05
     Q = quantile(a_i, 1-epsilon)
     for i in ProgressBar(1:size(testing)[1])
     if testing[i,end] != 0
@@ -250,7 +250,7 @@ correct = []
         for ii in 1:length(uni)
             P = get(wordContextVectors, uni[ii], 0)
             if  P != 0
-                X = wordOccurance[uni[ii]]
+                X = wordOccurance[uni[ii]] + 4
                 T = log(X)
                 #if norm(mean(P) - testing[i,1:300]) <= Q
                 #if minNorm(P,testing[i,1:300]) <= Q

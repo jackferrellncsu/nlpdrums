@@ -95,56 +95,28 @@ end
 takes in output from permuteSentances, a dictionary of embeddings an a ratio of incorrect examples to create the data set
 
 """
-function makeData(sentances, nextword, get_word_index, incorrects)
+function makeDataRNN(sentances, nextword, get_word_index, D)
 
     sentancesVecs = []
     nextwordVecs = []
     for i in ProgressBar(1:length(sentances))
-        if isnan(toEmbedding(sentances[i],get_word_index)[1]) != 1 &&
-            isnan(toEmbedding([nextword[i]],get_word_index)[1]) != 1&&
-            toEmbedding([nextword[i]],get_word_index)[1] != 0 &&
-            toEmbedding(sentances[i],get_word_index)[1] != 0
-
-                push!(sentancesVecs, toEmbedding(sentances[i],get_word_index))
-                push!(nextwordVecs, toEmbedding([nextword[i]],get_word_index))
+        temp = []
+        if get(get_word_index,nextword[i],zeros(300)) != zeros(300)
+            for x in S[i]
+                if get(get_word_index,x,zeros(300)) != zeros(300)
+                    push!(temp, get_word_index[x])
+                end
+            end
+            if length(temp) > 0
+                push!(sentancesVecs, temp)
+                onehot = zeros(length(D))
+                onehot[D[nextword[i]]] = 1
+                push!(nextwordVecs, onehot)
+            end
         end
     end
 
-    avoid = Dict()
-    for i in ProgressBar(1:length(sentancesVecs))
-        avoid[sentancesVecs[i]] = append!(get(avoid, sentancesVecs[i], []), [nextwordVecs[i]])
-    end
-
-    temp = vcat.(sentancesVecs,nextwordVecs)
-    sentancesVecs = temp
-
-    bogusNextWord = []
-    counter = 0
-    minnormmD = []
-    while length(bogusNextWord) < incorrects*length(sentancesVecs)
-        if length(bogusNextWord) % length(sentancesVecs) == 0
-            println(length(bogusNextWord) / (incorrects*length(sentancesVecs)))
-        end
-        W = get(get_word_index,rand(uni),zeros(300))
-        Context = sentancesVecs[(counter % length(sentancesVecs))+1][1:300]
-        if  isnan(W[1]) != 1 && W[1] != 0 && minNormD(avoid[Context], W) > 7.75
-            counter += 1
-            push!(bogusNextWord, vcat(Context, W))
-        end
-    end
-
-    len = length(sentancesVecs)
-
-    println("Made Data")
-
-    append!(sentancesVecs,bogusNextWord)
-
-    println("Concatanated Data")
-
-    resp = Int.(vcat(ones(Int(length(sentancesVecs)/(incorrects+1))),zeros(Int(incorrects*length(sentancesVecs)/(incorrects+1)))))
-    mat = vecvec_to_matrix(sentancesVecs,resp)
-
-    return [mat,resp]
+    return [sentancesVecs,nextwordVecs]
 end
 
 function toEmbedding(words, Embeddings)
@@ -186,6 +158,23 @@ function minNormD(P, C)
     return minN
 end
 
+function sampleVecVec(mat,resp,spliter)
+    partitionX1 = []
+    partitionX2 = []
+    partitionY1 = []
+    partitionY2 = []
+    inds = sample(1:length(mat), length(mat)-Int(ceil(spliter*length(mat))), replace = false)
+    for i in ProgressBar(1:length(mat))
+        if i in inds
+            push!(partitionX2, mat[i])
+            push!(partitionY2, resp[i])
+        else
+            push!(partitionX1, mat[i])
+            push!(partitionY1, resp[i])
+        end
+    end
+    return [partitionX1,partitionY1,partitionX2,partitionY2]
+end
 #------------------------
 Corp = makeCorpus("/Users/mlovig/Downloads/1342-0.txt")
 
@@ -198,7 +187,7 @@ wordspl = filter(x->(x≠"" && x≠"."),wordspl)
 #wordspl = wordspl[1:findall(x -> x == ".***", wordspl)[1]-1]
 
 uni = convert(Vector{String},unique(wordspl))
-D = Dict(1:length(uni) .=> uni)
+D = Dict(uni .=> 1:length(uni))
 
 embtable = load_embeddings(GloVe{:en},4, keep_words=Set(uni))
 
@@ -209,126 +198,90 @@ get_vector_word = Dict(embtable.embeddings[:,ii]=>word for (ii,word) in enumerat
 
 S,N = permuteSentances(vectorizedSpl,5)
 
-mat,resp = makeData(S,N, get_word_index, 24)
-mat = matNN
-df = DataFrame(mat)
+mat,resp = makeDataRNN(S,N, get_word_index, D)
 
-training,extra = TrainTestSplit(df, .9)
-calib,testing = TrainTestSplit(extra, .9)
+trainingX, trainingY, extraX, extraY = sampleVecVec(mat,resp,.9)
 
-training = Matrix(training)
-testing= Matrix(testing)
-calib = Matrix(calib)
+calibX, calibY, testingX, testingY = sampleVecVec(extraX,extraY,.9)
 
-nn = Chain(
-    Dense(600, 300, gelu),
-    Dense(300, 100, gelu),
-    Dense(100, 75, gelu),
-    Dense(50,  25,  gelu),
-    Dense(25,  10,  gelu),
-    Dense(10,  1, sigmoid))
-    ps = Flux.params(nn)
+rnn = Chain(
+    LSTM(300, 300),
+    LSTM(300, 3000),
+    Dense(3000,  6958, x->x), softmax)
+    ps = Flux.params(rnn)
 
 function loss(x, y)
-    return Flux.Losses.binarycrossentropy(nn(x),y)
+    Loss = 0
+    for i in ProgressBar(1:length(x))
+        Flux.reset!(rnn)
+        yhat = rnn.(x[i])[end]
+        Loss += Flux.Losses.crossentropy(yhat,y[i])
+    end
+    return Loss
 end
-
+function losssig(x, y)
+    Flux.reset!(rnn)
+    return Flux.Losses.binarycrossentropy(rnn.(x)[end],y)
+end
 losses = []
-batch  = 5000
-epochs = 50
-eta = .00001
-
-DL = Flux.Data.DataLoader((training[:,1:end-1]',training[:,end]'), batchsize = 50000, shuffle = true)
-opt = RADAM(eta)
+batch  = 100
+epochs = 1
+eta = .001
+DL = Flux.Data.DataLoader((trainingX,trainingY), batchsize = 1000, shuffle = true)
 for i in ProgressBar(1:epochs)
+    opt = Descent(eta)
     Flux.train!(loss, ps, DL, opt)
+    L = loss(trainingX,trainingY)
+    if i > 1 && L > losses[end]
+        eta = eta*.9
+    end
+    push!(losses,L)
+    Flux.reset!(rnn)
+    print("         ", L, "        ", sum(rnn.(trainingX[i])[end] .* trainingY[i]),"       ")
 end
 
 for i in 1:epochs
-    training = training[shuffle(1:end), :]
-    vecsvecs = []
-    for i in ProgressBar(1:size(training)[1])
-        push!(vecsvecs, training[i, 1:end-1])
-    end
-    for ii in ProgressBar(1:Int(floor(length(vecsvecs)/batch)))
+    inds = shuffle(1:length(trainingX))
+    trainingX = trainingX[inds, :]
+    trainingY = trainingY[inds, :]
+    for ii in ProgressBar(1:Int(floor(length(trainingX)/batch)))
         if ii%10 == 9
             opt = RADAM(eta)
             eta = eta*.8
         end
-        L = sum(loss.(vecsvecs[(ii-1) * batch + 1:ii*batch], training[(ii-1) * batch + 1:ii*batch,end]))
-        Flux.train!(loss, ps, zip(vecsvecs[(ii-1) * batch + 1:ii*batch], training[(ii-1) * batch + 1:ii*batch,end]), opt)
+        L = sum(loss(trainingX[(ii-1) * batch + 1:ii*batch], trainingY[(ii-1) * batch + 1:ii*batch]))
+        Flux.train!(losssig, ps, zip(trainingX[(ii-1) * batch + 1:ii*batch], trainingY[(ii-1) * batch + 1:ii*batch]), opt)
         push!(losses, L/batch)
 
         print("         ", L/batch)
     end
 end
 
+
+
 #---------------------
 occur = countmap(wordspl)
-a_i = []
-    for i in 1:size(calib)[1]
-    if isnan(calib[i,1]) == false && (calib[i,end]) == 1 && calib[i,end-1] != 0
-        #LL = log(occur[get_vector_word[calib[i,301:600]]]) + .000000001
-        #LLA = 1 - nn(calib[i,1:end-1])[1]^(1/LL)
-        NNA = 1 - nn(calib[i,1:end-1])[1]
-        #push!(a_i,  max(NNA,LLA))
-        push!(a_i,  NNA)
-    end
+occurvec = []
+for x in uni
+    push!(occurvec, occur[x])
 end
-epsilon = .1
-ii=1
-Q = quantile(a_i,1-epsilon)
-as = []
-if testing[ii,301:600] != zeros(300) && testing[ii,end] == 1
-    pred = []
-
-    for i in 1:length(uni)
-        if get(get_word_index, uni[i], 0)!= 0
-            LL = log2(occur[uni[i]]) + .000000001
-            LLA = (1 - nn(vcat(testing[ii,1:300], toEmbedding([uni[i]],get_word_index)))[1]^(1/LL))
-            NNA = 1 - nn(vcat(testing[ii,301:600], toEmbedding([uni[i]],get_word_index)))[1]
-            #a = max(NNA,LLA)
-            a = LLA
-            push!(as,a)
-            if a < Q
-                push!(pred, uni[i])
-            end
-        end
+a_i = zeros(length(calibX))
+    for i in ProgressBar(1:size(calibX)[1])
+        Flux.reset!(rnn)
+        a_i[i] = (1 - sum(rnn.(calibX[i])[end] .* calibY[i]))
     end
-    correctword = get_vector_word[testing[ii,301:600]]
-    println(ii, " ", length(pred), " ", correctword in pred, " ", correctword)
-    push!(counter, correctword in pred)
-    push!(eff, length(pred))
-    println(ii / sum(testing[:,end]), " ", sum(counter)/length(counter))
-end
-
 
 correct = []
     eff = []
-    epsilon = .1
-    Q = quantile(a_i,1-epsilon)
-    for ii in ProgressBar(1:argmin(testing[:,end]))
-        if testing[ii,end] == 1 && testing[ii,600] != 0
-            pred = []
-            for i in 1:length(uni)
-                if get(get_word_index, uni[i], 0)!= 0
-                    #LL = ln(occur[uni[i]]) + .000000001
-                    #LLA = (1 - nn(vcat(testing[ii,1:300], toEmbedding([uni[i]],get_word_index)))[1]^(1/LL))
-                    NNA = 1 - nn(vcat(testing[ii,301:600], toEmbedding([uni[i]],get_word_index)))[1]
-                    #a = max(NNA,LLA)
-                    a = NNA
-                    if a <= Q
-                        push!(pred, uni[i])
-                    end
-                end
-            end
-            correctword = get_vector_word[testing[ii,301:600]]
-            #println(ii, " ", length(pred), " ", correctword in pred, " ", correctword)
-            push!(correct, correctword in pred)
-            push!(eff, length(pred))
-            print("          ", 1-mean(correct), "         ", median(eff), "         ",quantile(eff, .9) - quantile(eff, .1))
-        end
+    epsilon = .05
+    Q = quantile(a_i[1:692],1-epsilon)
+    for ii in ProgressBar(1:length(testingX))
+        Pred = (1 .- rnn.(testingX[ii])[end]) .< Q
+        push!(correct, Flux.onecold(testingY[ii], uni) in uni[Pred])
+        push!(eff, sum(Pred))
+        print("          ", 1-mean(correct), "         ", median(eff), "         ",quantile(eff, .9) - quantile(eff, .1), "                                         ")
     end
+
 
 A = reverse(sort(collect(zip(values(occur),keys(occur)))))
 a = []

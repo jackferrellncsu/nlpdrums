@@ -137,11 +137,12 @@ BERTEMB = makeDataPOS(new_sentences,act_pos,bert_model, wordpiece, tokenizer, vo
 S, P = vecvec_to_matrix(BERTEMB[1]),vecvec_to_matrix(BERTEMB[2])
 
 
-trainingInd = sample(1:size(S)[1],800,replace = false)
+trainingInd = sample(1:size(S)[1],50000,replace = false)
 extraInd = filter(x->x∉trainingInd, 1:size(S)[1])
 trainS, trainP = S[trainingInd,:], P[trainingInd,:]
 extraS, extraP = S[extraInd, :], P[extraInd,:]
-calibInd = sample(1:size(extraS)[1],100,replace = false)
+
+calibInd = sample(1:size(extraS)[1],6340,replace = false)
 testingInd = filter(x->x∉calibInd, 1:size(extraS)[1])
 calibS, calibP = S[calibInd, :], P[calibInd,:]
 testS, testP = S[testingInd, :], P[testingInd,:]
@@ -190,27 +191,25 @@ correct = []
         push!(correct,trueWord in pred)
         push!(eff, length(pred))
         PPP = pred
-        print("         ",1-mean(correct), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
+        print("         ",1-mean(correct), "         ", mean(eff), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
     end
 
 
 
 
-DL = Flux.Data.DataLoader(((trainS)',(trainP)'), batchsize = 1000, shuffle = true)
+DL = Flux.Data.DataLoader(((trainS)',(trainP)'), batchsize = 10000, shuffle = true)
 
 regnet =Chain(
     Dense(768, 500, gelu),
-    Dropout(.05),
     Dense(500, 400, gelu),
-    Dropout(.15),
     Dense(400, 300, gelu),
-    Dropout(.05),
     Dense(300, 190,  x -> x), softmax)
-    ps = Flux.params(regnet)
+
+ps = Flux.params(regnet)
 
 
 function loss(x, y)
-    return sum(Flux.Losses.crossentropy(regnet(x)[:,1],y))
+    return sum(Flux.Losses.crossentropy(regnet(x),y))
 end
 
 testmode!(regnet, false)
@@ -218,15 +217,15 @@ testmode!(regnet, false)
 losses = []
 batch  = 1000
 epochs = 1000
-eta = .1
+eta = .001
 opt = RADAM(eta)
 for i in ProgressBar(1:epochs)
     Flux.train!(loss, ps, DL, opt)
     L = sum(loss.(eachrow(trainS[1:1000,:]), eachrow(trainP[1:1000,:])))
-    if i > 1 && L > losses[end]
-        eta = eta * .9
-        opt = RADAM(eta)
-    end
+    #if i > 1 && L > losses[end]
+        #eta = eta * .9
+        #opt = RADAM(eta)
+    #end
     push!(losses,L)
     print("         ", L, "        ", sum(regnet(trainS[1,:]) .* trainP[1,:]),"       ", eta, "      ")
 end
@@ -249,17 +248,20 @@ PPP = []
     Q = quantile(a_i,1-epsilon)
     for ii in ProgressBar(1:size(testP)[1])
         Pred = (1 .- regnet(testS[ii, :])) .< Q
-        push!(correct, Flux.onecold(testP[ii,:], uni) in uni[Pred])
+        push!(correct, Pred[argmax(testP[ii,:])] == 1)
         push!(eff, sum(Pred))
-        PPP = uni[Pred]
     end
-    print("          ", 1-mean(correct), "         ", median(eff), "         ",quantile(eff, .9) - quantile(eff, .1), "           ")
+    print("         ",1-mean(correct), "         ", mean(eff), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
 
 print(PPP)
 
 for x in tottags
     println(x)
 end
+
+using BSON: @save
+
+BSON.@save "BERTPOSMODEL.bson" regnet
 
 #-----------------
 vocab = Vocabulary(wordpiece)
