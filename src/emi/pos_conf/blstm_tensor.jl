@@ -88,6 +88,7 @@ train, calib, train_class, calib_class = SampleMats(temp_train, temp_train_class
 train = [train[:, :, i] for i in 1:size(train)[3]]
 test = [test[:, :, i] for i in 1:size(test)[3]]
 calib = [calib[:, :, i] for i in 1:size(calib)[3]]
+
 #=
 # Creating DataLoader
 dl_calib = Flux.Data.DataLoader((calib, calib_class))
