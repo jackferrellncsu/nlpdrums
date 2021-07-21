@@ -15,6 +15,8 @@ include("nextword_helpers.jl")
 
 Random.seed!(26)
 
+z = '\\'
+
 obj = load("PridePrej.jld");
     data = obj["data"];
     sentences = obj["sentances"];
@@ -33,7 +35,7 @@ vec_length = length(get_vector_word["the"]);
 
 #filter out non-embedded outcomes
 unique_words = [word for word in keys(get_vector_word)]
-data = DataFrame(data)
+data = DataFrame(data, :auto)
 filter!(row -> row[2] ∈ unique_words, data)
 data = Matrix(data)
 
