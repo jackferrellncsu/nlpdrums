@@ -45,19 +45,47 @@ masked_word, masked_pos, new_sentences = word_masker(sentences, sentence_tags)
 # mask_ind - the index of the masked word in each sentence
 # mask_emb - the embedding of each masked word
 # sent_emb - the embeddings of each word in every sentence
-# pre_sent_embs - the embeddings of the sentence up to the masked word
-# post_sent_embs - the embeddings of the sentence after the masked word
 mask_ind, mask_emb, sent_emb = create_embeddings(masked_word,
                     masked_pos, new_sentences, embtable)
 
 sent_emb = convert(Vector{Vector{Vector{Float32}}}, sent_emb)
 
-onehot_vecs = []
-onehot_vecs = convert(Vector{Vector{Float32}}, onehot_vecs)
+#function
 
-for i in 1:length(masked_pos)
-    push!(onehot_vecs, Flux.onehot(masked_pos[i], unique_pos))
+all_emb = []
+all_sent = []
+for i in 1:length(sent_emb)
+    for j in 1:length(sent_emb[i])
+        push!(all_emb, sent_emb[i][j])
+        if j <= length(new_sentences[i])
+            push!(all_sent, new_sentences[i][j])
+        end
+    end
+    println(i)
 end
+
+
+all_sent = convert(Vector{String}, all_sent)
+all_emb = convert(Vector{Vector{Float32}}, all_emb)
+all_word_emb = zeros(300, length(all_sent))
+for i in 1:length(all_emb)
+    for j in 1:length(all_emb[1])
+        all_word_emb[j, i] = all_emb[i][j]
+    end
+    println(i)
+end
+
+all_word_emb = convert(Array{Float32, 2}, all_word_emb)
+JLD.save("mega_mat.jld", "mega_mat", all_word_emb)
+mega = JLD.load("mega_mat.jld")
+all_word_emb = mega["mega_mat"]
+
+#onehot_mat = Flux.onehotbatch(masked_pos, unique_pos)
+onehot_vecs = zeros(length(unique_pos), length(masked_pos))
+for i in 1:length(masked_pos)
+    onehot_vecs[:, i] = Flux.onehot(masked_pos[i], unique_pos)
+end
+onehot_vecs = convert(Array{Float32, 2}, onehot_vecs)
 
 train, train_class, test, test_class, calib,
                 calib_class = splitter(sent_emb, onehot_vecs, .9, .9)

@@ -14,7 +14,13 @@ using StatsBase
 using BSON
 
 # ------------------------ Functions ------------------------ #
+"""
+    word_masker(sentences, tags)
 
+Mask a randomly selected word in every sentence in sentences.
+
+Return the
+"""
 function word_masker(sentences, tags)
 
     act_word = []
@@ -124,7 +130,7 @@ function sent_embeddings(sentences, sentence_tags, num_embed, num_words, dict)
     return tens, sent, tags
 end
 
-function create_embeddings(masked_word, masked_pos, new_sentences, dict)
+function create_embeddings(masked_word, masked_pos, new_sentences, sent_tens, dict)
 
     # Finds indices of masked words for each sentence
     masked_ind = []
@@ -143,17 +149,14 @@ function create_embeddings(masked_word, masked_pos, new_sentences, dict)
     end
 
     # Embeddings for each sentence
-    sentence_emb = []
-    for i in 1:length(new_sentences)
+    for i in 1:length(sent_tens[1, 1, :])
         temp = []
-        for j in 1:length(new_sentences[i])
-            push!(temp, get(dict, new_sentences[i][j], zeros(300)))
-        end
-        push!(sentence_emb, temp)
+        mask = masked_ind[i]
+        sent_tens[:, mask, i] = fill(-20.0, 300)
     end
 
 
-    return masked_ind, masked_embeddings, sentence_emb
+    return masked_ind, masked_embeddings, sent_tens
 end
 
 function splitter(sent_emb, onehot_vecs, train_test, train_calib)
@@ -196,4 +199,61 @@ function splitter(sent_emb, onehot_vecs, train_test, train_calib)
     calib_class = convert(Vector{Vector{Float32}}, calib_class)
 
     return train, train_class, test, test_class, calib, calib_class
+end
+
+function SampleMats(x_mat, y_mat, prop = 0.9)
+    inds = [1:size(x_mat)[3];]
+    length(inds)
+    trains = sample(inds, Int(floor(length(inds) * prop)), replace = false)
+    inds = Set(inds)
+    trains = Set(trains)
+    tests = setdiff(inds, trains)
+
+    train_x = x_mat[:, :, collect(trains)]
+    train_y = y_mat[:, collect(trains)]
+
+    test_x = x_mat[:, :, collect(tests)]
+    test_y = y_mat[:, collect(tests)]
+
+
+    return train_x, test_x, train_y, test_y
+end
+
+"""
+    find_mask_ind(tens)
+
+Takes in a tensor, returns a vector of mask index for each sentence in tensor.
+Assumes mask embeddings are set to -20.0.
+"""
+function find_mask_ind(tens)
+
+    ind = []
+    for i in 1:length(tens[1, 1, :])
+        push!(ind, argmin(tens[1, :, i]))
+    end
+    return ind
+end
+
+function create_window(sent_tens_emb, window_size)
+
+    mask_ind = 0
+    num_wind = (window_size * 2) + 1
+    new_tens = zeros(300, num_wind, length(sent_tens_emb[1, 1, :]))
+    for i in 1:length(sent_tens_emb[1, 1, :])
+        mask_ind = argmin(sent_tens_emb[1, :, i])
+        if mask_ind == 16
+            new_tens[:, :, i] = sent_tens_emb[:, 1:num_wind, i]
+        elseif mask_ind > 16
+            num_start = (mask_ind - 16) + 1
+            num_end = num_wind + (num_start - 1)
+            new_tens[:, :, i] = sent_tens_emb[:, num_start:num_end, i]
+        elseif mask_ind < 16
+            num_zero = window_size - (mask_ind - 1)
+            new_mat = zeros(300, num_zero)
+            stopper = mask_ind + (window_size)
+            new_tens[:, :, i] = hcat(new_mat, sent_tens_emb[:, 1:stopper, i])
+        end
+        println(i)
+    end
+    return new_tens
 end
