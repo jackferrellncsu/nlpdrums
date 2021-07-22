@@ -27,6 +27,7 @@ brown_df = CSV.read("brown.csv", DataFrame)
 brown_data = brown_df[4]
 raw_sentences = split.(brown_data, " ")
 
+#Cleans the tags
 raw_tags = []
     raw_words = []
     for sent in raw_sentences
@@ -46,6 +47,8 @@ raw_tags = []
     push!(raw_tags, raw_tags_temp)
     push!(raw_words, raw_words_temp)
 end
+
+#creates the unique POS tags
 unitags = unique.(raw_tags)
 uni = []
 for i in ProgressBar(1:length(unitags))
@@ -53,7 +56,7 @@ for i in ProgressBar(1:length(unitags))
     uni = unique(uni)
 end
 
-
+#Masks a random word in each sentence
 function word_masker(sentences, tags)
 
     act_word = []
@@ -66,6 +69,9 @@ function word_masker(sentences, tags)
     end
     return act_word, act_pos, sentences
 end
+
+#Turning the tags into a bert sentence with [MASK] as the masked word
+#We then use the default transformer to create the intented embedding for the word
 
 function makeDataPOS(sentences, POS, bert_model, wordpiece, tokenizer, vocab, U)
     sentencesVecs = []
@@ -115,6 +121,7 @@ function vecvec_to_matrix(vecvec)
     return my_array
 end
 
+#The Best Non-Conformity we have
 function minNorm(P, C)
     normz = []
     for p in P
@@ -129,14 +136,15 @@ act_word, act_pos, new_sentences = word_masker(raw_words, raw_tags)
 
 ENV["DATADEPS_ALWAYS_ACCEPT"] = true
 
-_bert_model, wordpiece, tokenizer = pretrain"bert-uncased_L-12_H-768_A-12"
+#creating the bertmodel
+bert_model, wordpiece, tokenizer = pretrain"bert-uncased_L-12_H-768_A-12"
 vocab = Vocabulary(wordpiece)
 
 BERTEMB = makeDataPOS(new_sentences,act_pos,bert_model, wordpiece, tokenizer, vocab, uni)
 
 S, P = vecvec_to_matrix(BERTEMB[1]),vecvec_to_matrix(BERTEMB[2])
 
-
+#Splitting the masked word embedding into training, testing, calibration at ≈.9, .09,.01
 trainingInd = sample(1:size(S)[1],50000,replace = false)
 extraInd = filter(x->x∉trainingInd, 1:size(S)[1])
 trainS, trainP = S[trainingInd,:], P[trainingInd,:]
@@ -147,6 +155,9 @@ testingInd = filter(x->x∉calibInd, 1:size(extraS)[1])
 calibS, calibP = S[calibInd, :], P[calibInd,:]
 testS, testP = S[testingInd, :], P[testingInd,:]
 
+
+#---------------------
+#Jon's Method
 POSSENTVECS = Dict()
     for i in ProgressBar(1:size(trainS)[1])
         part = Flux.onecold(trainP[i,:], uni)
@@ -195,6 +206,8 @@ correct = []
     end
 
 
+#------------------------
+#Bert's Method
 
 
 DL = Flux.Data.DataLoader(((trainS)',(trainP)'), batchsize = 10000, shuffle = true)
@@ -241,23 +254,18 @@ correct = 0
         end
     end
 
-PPP = []
-    correct = []
+
+correct = []
     eff = []
-    epsilon = .1
+    epsilon = .05
     Q = quantile(a_i,1-epsilon)
     for ii in ProgressBar(1:size(testP)[1])
-        Pred = (1 .- regnet(testS[ii, :])) .< Q
+        Pred = (1 .- regnet(testS[ii, :])) .<= Q
         push!(correct, Pred[argmax(testP[ii,:])] == 1)
         push!(eff, sum(Pred))
     end
-    print("         ",1-mean(correct), "         ", mean(eff), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
+    println("         ",1-mean(correct), "         ", mean(eff), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
 
-print(PPP)
-
-for x in tottags
-    println(x)
-end
 
 using BSON: @save
 
