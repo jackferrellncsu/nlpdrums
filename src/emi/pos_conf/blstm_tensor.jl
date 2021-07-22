@@ -39,34 +39,65 @@ keys_embtable = get_keys(embtable)
 # Finding the words that don't have GloVe embeddings
 no_embeddings = setdiff(unique_words, keys_embtable)
 
+sent_tens, new_sent, new_tags = sent_embeddings(sentences, sentence_tags, 300, 20, embtable)
+
+new_sent = convert(Vector{Vector{String}}, new_sent)
+new_tags = convert(Vector{Vector{String}}, new_tags)
+sent_tens = convert(Array{Float32, 3}, sent_tens)
+
 # Masks random word in each sentence
-masked_word, masked_pos, new_sentences = word_masker(sentences, sentence_tags)
+masked_word, masked_pos, new_sentences = word_masker(new_sent, new_tags)
 
 # mask_ind - the index of the masked word in each sentence
 # mask_emb - the embedding of each masked word
 # sent_emb - the embeddings of each word in every sentence
 # pre_sent_embs - the embeddings of the sentence up to the masked word
 # post_sent_embs - the embeddings of the sentence after the masked word
-mask_ind, mask_emb, sent_emb = create_embeddings(masked_word,
-                    masked_pos, new_sentences, embtable)
+mask_ind, mask_emb = create_embeddings(masked_word, masked_pos,
+                                new_sentences, embtable)
 
-sent_emb = convert(Vector{Vector{Vector{Float32}}}, sent_emb)
 
-onehot_vecs = []
-onehot_vecs = convert(Vector{Vector{Float32}}, onehot_vecs)
-
+#onehot_mat = Flux.onehotbatch(masked_pos, unique_pos)
+onehot_vecs = zeros(length(unique_pos), length(masked_pos))
 for i in 1:length(masked_pos)
-    push!(onehot_vecs, Flux.onehot(masked_pos[i], unique_pos))
+    onehot_vecs[:, i] = Flux.onehot(masked_pos[i], unique_pos)
+end
+onehot_vecs = convert(Array{Float32, 2}, onehot_vecs)
+
+function SampleMats(x_mat, y_mat, prop = 0.9)
+    inds = [1:size(x_mat)[3];]
+    length(inds)
+    trains = sample(inds, Int(floor(length(inds) * prop)), replace = false)
+    inds = Set(inds)
+    trains = Set(trains)
+    tests = setdiff(inds, trains)
+
+    train_x = x_mat[:, :, collect(trains)]
+    train_y = y_mat[:, collect(trains)]
+
+    test_x = x_mat[:, :, collect(tests)]
+    test_y = y_mat[:, collect(tests)]
+
+
+    return train_x, test_x, train_y, test_y
 end
 
-train, train_class, test, test_class, calib,
-                calib_class = splitter(sent_emb, onehot_vecs, .9, .9)
+temp_train, test, temp_train_class, test_class = SampleMats(sent_tens, onehot_vecs)
+train, calib, train_class, calib_class = SampleMats(temp_train, temp_train_class)
 
+train = [train[:, :, i] for i in 1:size(train)[3]]
+test = [test[:, :, i] for i in 1:size(test)[3]]
+calib = [calib[:, :, i] for i in 1:size(calib)[3]]
+
+#=
+# Creating DataLoader
 dl_calib = Flux.Data.DataLoader((calib, calib_class))
 dl_test = Flux.Data.DataLoader((test, test_class))
-dl_train = Flux.Data.DataLoader((train[1:100], train_class[1:100]),
+dl_train = Flux.Data.DataLoader((train[1:10], train_class[:, 1:10]),
                                     batchsize = 10000, shuffle = true)
+=#
 
+data = collect(zip(train[1:10], train_class[:, 1:10]))
 
 forward = LSTM(300, 150)
 backward = LSTM(300, 150)
@@ -96,7 +127,7 @@ end
 epochs = 1
 traceY = []
 for i in ProgressBar(1:epochs)
-    Flux.train!(loss, ps, dl_train, opt)
+    Flux.train!(loss, ps, data, opt)
     Flux.reset!((forward, backward))
     L = sum(loss(sent_emb[1:100], onehot_vecs[1:100]))
     push!(traceY, L)

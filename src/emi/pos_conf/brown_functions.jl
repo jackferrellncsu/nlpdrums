@@ -75,11 +75,53 @@ end
 
 function get_keys(dict)
 
-    keys = []
+    keyz = []
     for i in keys(dict)
-        push!(keys, i)
+        push!(keyz, i)
     end
-    return keys
+    return keyz
+end
+
+function sent_embeddings(sentences, sentence_tags, num_embed, num_words, dict)
+
+    # Embeddings for each sentence
+    tens = zeros(num_embed, num_words, length(sentences))
+
+    sent = []
+    tags = []
+    for i in 1:length(sentences)
+        temp = []
+        temp_tag = []
+        for j in 1:length(sentences[i])
+            if length(sentences[i]) < num_words
+                tens[:, j, i] = get(dict, sentences[i][j], zeros(num_embed))
+                push!(temp, sentences[i][j])
+                push!(temp_tag, sentence_tags[i][j])
+            elseif length(sentences[i]) >= num_words
+                if j == (num_words + 1)
+                    break
+                else
+                    tens[:, j, i] = get(dict, sentences[i][j], zeros(num_embed))
+                    push!(temp, sentences[i][j])
+                    push!(temp_tag, sentence_tags[i][j])
+                end
+            end
+        end
+        # For pre-sentences with < "num_words", average of word embeddings
+        # is taken and added to tensor
+        if length(sentences[i]) < num_words
+
+            vecs_needed = 0
+            vecs_needed = num_words - length(sentences[i])
+
+            for j in 1:vecs_needed
+                tens[:, length(sentences[i]) + j, i] .= 0.0
+            end
+        end
+        push!(sent, temp)
+        push!(tags, temp_tag)
+    end
+    return tens, sent, tags
 end
 
 function create_embeddings(masked_word, masked_pos, new_sentences, dict)
@@ -110,30 +152,8 @@ function create_embeddings(masked_word, masked_pos, new_sentences, dict)
         push!(sentence_emb, temp)
     end
 
-    # Sentence embeddings before masked word
-    # In order of first word in sentence up to word right before masked word
-    pre_sentence_embs = []
-    for i in 1:length(sentence_emb)
-        temp = []
-        for j in 1:masked_ind[i]-1
-            push!(temp, sentence_emb[i][j])
-        end
-        push!(pre_sentence_embs, temp)
-    end
 
-    # Sentence embeddings after masked word
-    # In order of last word in sentence up to word right after masked word
-    post_sentence_embs = []
-    for i in 1:length(sentence_emb)
-        temp = []
-        for j in masked_ind[i]+1:length(sentence_emb[i])
-            push!(temp, sentence_emb[i][j])
-        end
-        temp = reverse(temp)
-        push!(post_sentence_embs, temp)
-    end
-
-    return masked_ind, masked_embeddings, sentence_emb, pre_sentence_embs, post_sentence_embs
+    return masked_ind, masked_embeddings, sentence_emb
 end
 
 function splitter(sent_emb, onehot_vecs, train_test, train_calib)
