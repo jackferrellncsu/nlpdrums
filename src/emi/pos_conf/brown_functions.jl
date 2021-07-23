@@ -253,7 +253,6 @@ function create_window(sent_tens_emb, window_size)
             stopper = mask_ind + (window_size)
             new_tens[:, :, i] = hcat(new_mat, sent_tens_emb[:, 1:stopper, i])
         end
-        println(i)
     end
     return new_tens
 end
