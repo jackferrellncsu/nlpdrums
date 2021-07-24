@@ -22,6 +22,7 @@ include("brown_functions.jl")
 
 # Reading in text file
 brown_df = CSV.read("brown.csv", DataFrame)
+
 brown_data = brown_df[4]
 raw_sentences = split.(brown_data, " ")
 
@@ -33,7 +34,7 @@ unique_words = convert(Vector{String},unique(words))
 # Finding embeddings for each unique word
 embeddings_glove = load_embeddings(GloVe{:en},4, keep_words=Set(unique_words))
 embtable = Dict(word=>embeddings_glove.embeddings[:,ii] for (ii,word) in enumerate(embeddings_glove.vocab))
-
+#JLD.save("brownEmbs.jld", "embtable", embtable)
 # Finding the words that have GloVe embeddings
 keys_embtable = get_keys(embtable)
 
