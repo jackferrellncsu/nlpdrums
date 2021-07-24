@@ -11,5 +11,5 @@
 module load cuda/11.0
 module load julia
 setenv CUDA_VISIBLE_DEVICES = 3
-setenv JULIA_DEPOT_PATH /usr/local/usrapps/hmmrs/jferrel3/julia
+setenv JULIA_DEPOT_PATH /share/hmmrs/jferrel3/julia
 julia nextword_softmax_cluster.jl
