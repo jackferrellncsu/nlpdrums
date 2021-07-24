@@ -149,7 +149,7 @@ function loss(x, y)
 end
 
 # Training the Neural Net, Tracking Loss Progression
-epochs = 1
+epochs = 5
 traceY = []
 
 #evalcb() = push!(traceY, loss(train[:, :, 100]), train_class[:, 100]))
@@ -160,15 +160,18 @@ for i in ProgressBar(1:epochs)
     #Flux.reset!((forward, backward))
 end
 
-# Plots Loss
-plotly()
-x = 1:epochs
-y = traceY
-plot(x, y)
+model = model |> cpu
+using BSON: @save
+
+BSON.@save "lstm_mod" model
+
+JLD.save("trace.jld", "trace", traceY)
 
 
-function predict(x)
-    pred = model1(x)
-    Flux.reset!((forward, backward))
-    return pred
-end
+# # Plots Loss
+# plotly()
+# x = 1:epochs
+# y = traceY
+# plot(x, y)
+
+
