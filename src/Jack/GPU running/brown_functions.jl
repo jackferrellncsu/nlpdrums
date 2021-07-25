@@ -1,14 +1,10 @@
-using SparseArrays
-using SparseArrayKit
 using JLD
-using Word2Vec
 using LinearAlgebra
 using Statistics
 using Embeddings
 using Flux
 using Random
 using DataFrames
-using Lathe.preprocess: TrainTestSplit
 using Plots
 using StatsBase
 using BSON

@@ -1,0 +1,77 @@
+┌ Warning: The NVIDIA driver on this system only supports up to CUDA 11.0.0.
+│ For performance reasons, it is recommended to upgrade to a driver that supports CUDA 11.2 or higher.
+└ @ CUDA /share/hmmrs/jferrel3/julia/packages/CUDA/lwSps/src/initialization.jl:42
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ Downloading artifact: CUDA
+ERROR: LoadError: Scalar indexing is disallowed.
+Invocation of getindex resulted in scalar indexing of a GPU array.
+This is typically caused by calling an iterating implementation of a method.
+Such implementations *do not* execute on the GPU, but very slowly on the CPU,
+and therefore are only permitted from the REPL for prototyping purposes.
+If you did intend to index this array, annotate the caller with @allowscalar.
+Stacktrace:
+  [1] error(s::String)
+    @ Base ./error.jl:33
+  [2] assertscalar(op::String)
+    @ GPUArrays /share/hmmrs/jferrel3/julia/packages/GPUArrays/8dzSJ/src/host/indexing.jl:53
+  [3] getindex(xs::CUDA.CuArray{Float32, 2}, I::Int64)
+    @ GPUArrays /share/hmmrs/jferrel3/julia/packages/GPUArrays/8dzSJ/src/host/indexing.jl:86
+  [4] adjoint
+    @ /share/hmmrs/jferrel3/julia/packages/Zygote/TaBlo/src/lib/array.jl:31 [inlined]
+  [5] _pullback
+    @ /share/hmmrs/jferrel3/julia/packages/ZygoteRules/OjfTt/src/adjoint.jl:57 [inlined]
+  [6] _pullback
+    @ /share/hmmrs/jferrel3/julia/packages/StatsBase/DU1bT/src/scalarstats.jl:592 [inlined]
+  [7] _pullback(::Zygote.Context, ::typeof(crossentropy), ::CUDA.CuArray{Float32, 2}, ::CUDA.CuArray{Float32, 2})
+    @ Zygote /share/hmmrs/jferrel3/julia/packages/Zygote/TaBlo/src/compiler/interface2.jl:0
+  [8] _pullback
+    @ /gpfs_common/share02/hmmrs/jferrel3/NLP/blstm_tensor.jl:121 [inlined]
+  [9] _pullback(::Zygote.Context, ::typeof(loss), ::CUDA.CuArray{Float32, 3}, ::CUDA.CuArray{Float32, 2})
+    @ Zygote /share/hmmrs/jferrel3/julia/packages/Zygote/TaBlo/src/compiler/interface2.jl:0
+ [10] _apply
+    @ ./boot.jl:804 [inlined]
+ [11] adjoint
+     /share/hmmrs/jferrel3/julia/packages/Zygote/TaBlo/src/lib/lib.jl:200 [inlined]
+ [12] _pullback
+    @ /share/hmmrs/jferrel3/julia/packages/ZygoteRules/OjfTt/src/adjoint.jl:57 [inlined]
+ [13] _pullback
+    @ /share/hmmrs/jferrel3/julia/packages/Flux/Zz9RI/src/optimise/train.jl:105 [inlined]
+ [14] _pullback(::Zygote.Context, ::Flux.Optimise.var"#39#45"{typeof(loss), Tuple{CUDA.CuArray{Float32, 3}, CUDA.CuArray{Float32, 2}}})
+    @ Zygote /share/hmmrs/jferrel3/julia/packages/Zygote/TaBlo/src/compiler/interface2.jl:0
+ [15] pullback(f::Function, ps::Zygote.Params)
+    @ Zygote /share/hmmrs/jferrel3/julia/packages/Zygote/TaBlo/src/compiler/interface.jl:343
+ [16] gradient(f::Function, args::Zygote.Params)
+    @ Zygote /share/hmmrs/jferrel3/julia/packages/Zygote/TaBlo/src/compiler/interface.jl:75
+ [17] macro expansion
+    @ /share/hmmrs/jferrel3/julia/packages/Flux/Zz9RI/src/optimise/train.jl:104 [inlined]
+ [18] macro expansion
+    @ /share/hmmrs/jferrel3/julia/packages/Juno/n6wyj/src/progress.jl:134 [inlined]
+ [19] train!(loss::Function, ps::Zygote.Params, data::Flux.Data.DataLoader{Tuple{CUDA.CuArray{Float32, 3}, CUDA.CuArray{Float32, 2}}, Random._GLOBAL_RNG}, opt::RADAM; cb::Flux.Optimise.var"#40#46")
+    @ Flux.Optimise /share/hmmrs/jferrel3/julia/packages/Flux/Zz9RI/src/optimise/train.jl:102
+ [20] train!(loss::Function, ps::Zygote.Params, data::Flux.Data.DataLoader{Tuple{CUDA.CuArray{Float32, 3}, CUDA.CuArray{Float32, 2}}, Random._GLOBAL_RNG}, opt::RADAM)
+    @ Flux.Optimise /share/hmmrs/jferrel3/julia/packages/Flux/Zz9RI/src/optimise/train.jl:100
+ [21] top-level scope
+    @ /gpfs_common/share02/hmmrs/jferrel3/NLP/blstm_tensor.jl:134
+in expression starting at /gpfs_common/share02/hmmrs/jferrel3/NLP/blstm_tensor.jl:133

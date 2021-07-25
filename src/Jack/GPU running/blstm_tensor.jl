@@ -1,7 +1,4 @@
-using SparseArrays
-using SparseArrayKit
 using JLD
-using Word2Vec
 using LinearAlgebra
 using Statistics
 using Embeddings
@@ -9,7 +6,6 @@ using Flux
 using Flux: Losses
 using Random
 using DataFrames
-using Lathe.preprocess: TrainTestSplit
 using Plots
 using StatsBase
 using BSON
@@ -22,7 +18,7 @@ include("brown_functions.jl")
 
 # Reading in text file
 brown_df = CSV.read("brown.csv", DataFrame)
-brown_data = brown_df[4]
+brown_data = brown_df[!, 4]
 raw_sentences = split.(brown_data, " ")
 
 # Finding unique words and embeddings for each
@@ -109,30 +105,9 @@ function BLSTM(x)
     return res
 end
 
-vectorizer(x) = embedding(BLSTM(x))
+vectorizer(x) = embedding(BLSTM(x)) |> gpu
 
-model(x) = predictor(vectorizer(x))
-
-# Tester
-for (x, y) in dl_train
-    #c = BLSTM(x)
-    d = model(x)
-    @show d
-    l = loss(x, y)
-    #@show typeof(c)
-    #@show size(c)
-    #@show c
-    #d = embedding(c)
-    #@show typeof(d)
-    #@show size(d)
-    ##@show d
-    #e = predictor(d)
-    #@show typeof(e)
-    #@show size(e)
-    ##@show e
-    #@show crossentropy(e[:,1], y[:,1])
-
-end
+model(x) = predictor(vectorizer(x)) |> gpu
 
 
 # Optimizer
@@ -153,7 +128,6 @@ epochs = 5
 traceY = []
 
 #evalcb() = push!(traceY, loss(train[:, :, 100]), train_class[:, 100]))
-throt = Flux.throttle(evalcb, 5)
 
 for i in ProgressBar(1:epochs)
     Flux.train!(loss, ps, dl_train, opt)
@@ -173,5 +147,3 @@ JLD.save("trace.jld", "trace", traceY)
 # x = 1:epochs
 # y = traceY
 # plot(x, y)
-
-

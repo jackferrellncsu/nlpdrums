@@ -6,6 +6,7 @@ using Flux
 using Flux: Losses
 using Random
 using DataFrames
+using Plots
 using StatsBase
 using BSON
 using ProgressBars
@@ -17,8 +18,7 @@ include("brown_functions.jl")
 
 # Reading in text file
 brown_df = CSV.read("brown.csv", DataFrame)
-
-brown_data = brown_df[4]
+brown_data = brown_df[!, 4]
 raw_sentences = split.(brown_data, " ")
 
 # Finding unique words and embeddings for each
@@ -27,9 +27,9 @@ words = get_word_vec(sentences)
 unique_words = convert(Vector{String},unique(words))
 
 # Finding embeddings for each unique word
-embeddings_glove = load_embeddings(GloVe{:en},4, keep_words=Set(unique_words))
-embtable = Dict(word=>embeddings_glove.embeddings[:,ii] for (ii,word) in enumerate(embeddings_glove.vocab))
-#JLD.save("brownEmbs.jld", "embtable", embtable)
+#embeddings_glove = load_embeddings(GloVe{:en},4, keep_words=Set(unique_words))
+#embtable = Dict(word=>embeddings_glove.embeddings[:,ii] for (ii,word) in enumerate(embeddings_glove.vocab))
+embtable = JLD.load("brownEmbs.jld", "embtable")
 # Finding the words that have GloVe embeddings
 keys_embtable = get_keys(embtable)
 
@@ -62,8 +62,8 @@ onehot_vecs = convert(Array{Float32, 2}, onehot_vecs)
 
 
 
-temp_train, test, temp_train_class, test_class = SampleMats(sent_tens_emb, onehot_vecs)
-train, calib, train_class, calib_class = SampleMats(temp_train, temp_train_class)
+temp_train, test, temp_train_class, test_class = SampleMats(sent_tens_emb, onehot_vecs) 
+train, calib, train_class, calib_class = SampleMats(temp_train, temp_train_class) 
 
 
 
@@ -109,27 +109,6 @@ vectorizer(x) = embedding(BLSTM(x))
 
 model(x) = predictor(vectorizer(x))
 
-# Tester
-for (x, y) in dl_train
-    #c = BLSTM(x)
-    d = model(x)
-    @show d
-    l = loss(x, y)
-    #@show typeof(c)
-    #@show size(c)
-    #@show c
-    #d = embedding(c)
-    #@show typeof(d)
-    #@show size(d)
-    ##@show d
-    #e = predictor(d)
-    #@show typeof(e)
-    #@show size(e)
-    ##@show e
-    #@show crossentropy(e[:,1], y[:,1])
-
-end
-
 
 # Optimizer
 opt = RADAM()
@@ -145,26 +124,26 @@ function loss(x, y)
 end
 
 # Training the Neural Net, Tracking Loss Progression
-epochs = 1
+epochs = 5
 traceY = []
 
 #evalcb() = push!(traceY, loss(train[:, :, 100]), train_class[:, 100]))
-throt = Flux.throttle(evalcb, 5)
 
 for i in ProgressBar(1:epochs)
     Flux.train!(loss, ps, dl_train, opt)
     #Flux.reset!((forward, backward))
 end
 
-# Plots Loss
-plotly()
-x = 1:epochs
-y = traceY
-plot(x, y)
+
+using BSON: @save
+
+BSON.@save "lstm_mod_cpu" model
+
+JLD.save("trace_cpu.jld", "trace", traceY)
 
 
-function predict(x)
-    pred = model1(x)
-    Flux.reset!((forward, backward))
-    return pred
-end
+# # Plots Loss
+# plotly()
+# x = 1:epochs
+# y = traceY
+# plot(x, y)
