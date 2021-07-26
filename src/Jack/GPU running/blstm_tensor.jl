@@ -12,7 +12,7 @@ using BSON
 using ProgressBars
 using CSV
 
-Random.setseed!(24)
+Random.seed!(24)
 println("Phase 1 Complete")
 # ------------------------ Data Cleaning ------------------------ #
 
