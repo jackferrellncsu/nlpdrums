@@ -12,6 +12,8 @@ using BSON
 using ProgressBars
 using CSV
 
+Random.setseed!(24)
+println("Phase 1 Complete")
 # ------------------------ Data Cleaning ------------------------ #
 
 include("brown_functions.jl")
@@ -65,7 +67,7 @@ onehot_vecs = convert(Array{Float32, 2}, onehot_vecs)
 temp_train, test, temp_train_class, test_class = SampleMats(sent_tens_emb, onehot_vecs) |> gpu
 train, calib, train_class, calib_class = SampleMats(temp_train, temp_train_class) |> gpu
 
-
+println("Phase 2 complete")
 
 # Creating DataLoader
 dl_calib = Flux.Data.DataLoader((calib, calib_class))
@@ -118,26 +120,35 @@ ps = Flux.params((forward, backward, embedding, predictor))
 
 # Loss
 function loss(x, y)
-    l = sum(crossentropy(model(x), y))
-    Flux.reset!((forward, backward))
+    Flux.reset!(forward)
+    Flux.reset!(backward)
+    l = Flux.crossentropy(model(x), y)
     return l
 end
 
 # Training the Neural Net, Tracking Loss Progression
 epochs = 5
 traceY = []
+println("Beginning training")
 
 #evalcb() = push!(traceY, loss(train[:, :, 100]), train_class[:, 100]))
 
 for i in ProgressBar(1:epochs)
+    Flux.reset!(forward)
+    Flux.reset!(backward)
     Flux.train!(loss, ps, dl_train, opt)
-    #Flux.reset!((forward, backward))
+    @show i
+    for (x, y) in dl_train
+        push!(traceY, loss(x, y))
+        break
+    end
 end
 
+println("training complete")
 model = model |> cpu
 using BSON: @save
 
-BSON.@save "lstm_mod" model
+BSON.@save "lstm_mod.bson" model
 
 JLD.save("trace.jld", "trace", traceY)
 

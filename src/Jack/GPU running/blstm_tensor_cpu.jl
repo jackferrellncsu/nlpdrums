@@ -62,10 +62,8 @@ onehot_vecs = convert(Array{Float32, 2}, onehot_vecs)
 
 
 
-temp_train, test, temp_train_class, test_class = SampleMats(sent_tens_emb, onehot_vecs) 
-train, calib, train_class, calib_class = SampleMats(temp_train, temp_train_class) 
-
-
+temp_train, test, temp_train_class, test_class = SampleMats(sent_tens_emb, onehot_vecs)
+train, calib, train_class, calib_class = SampleMats(temp_train, temp_train_class)
 
 # Creating DataLoader
 dl_calib = Flux.Data.DataLoader((calib, calib_class))
@@ -81,10 +79,14 @@ backward = LSTM(300, 150)
 embedding = Dense(300, 300)
 predictor = Chain(Dense(300, 250, relu), Dense(250,190), softmax)
 
+
 function BLSTM(x)
 
     #Flux.reset!((forward, backward))
     fw = forward.([x[:, 1:15, i] for i in 1:size(x, 3)])
+    if isnan(fw[1][1, 1])
+        println("NaN detected")
+    end
     fw_mat = hcat.(f[:,15] for f in fw)
 
     bw = backward.([x[:, end:-1:17, i] for i = size(x, 3):-1:1])
@@ -105,10 +107,10 @@ function BLSTM(x)
     return res
 end
 
+
 vectorizer(x) = embedding(BLSTM(x))
 
 model(x) = predictor(vectorizer(x))
-
 
 # Optimizer
 opt = RADAM()
@@ -118,8 +120,9 @@ ps = Flux.params((forward, backward, embedding, predictor))
 
 # Loss
 function loss(x, y)
-    l = sum(crossentropy(model(x), y))
-    Flux.reset!((forward, backward))
+    Flux.reset!(forward)
+    Flux.reset!(backward)
+    l = sum(Flux.crossentropy(model(x), y))
     return l
 end
 
@@ -128,22 +131,30 @@ epochs = 5
 traceY = []
 
 #evalcb() = push!(traceY, loss(train[:, :, 100]), train_class[:, 100]))
+zeros(300, 15)
 
 for i in ProgressBar(1:epochs)
+    Flux.reset!(forward)
+    Flux.reset!(backward)
     Flux.train!(loss, ps, dl_train, opt)
+    for (x, y) in dl_train
+        l = loss(x, y)
+        @show l
+        push!(traceY, l)
+        break
+    end
+    @show i
     #Flux.reset!((forward, backward))
 end
 
 
+
 using BSON: @save
 
-BSON.@save "lstm_mod_cpu" model
+BSON.@save "lstm_mod_cpu.bson" model
 
 JLD.save("trace_cpu.jld", "trace", traceY)
 
 
 # # Plots Loss
 # plotly()
-# x = 1:epochs
-# y = traceY
-# plot(x, y)
