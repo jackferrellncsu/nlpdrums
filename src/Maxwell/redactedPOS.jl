@@ -20,42 +20,6 @@ using Transformers.Pretrain
 
 # ------------------------ Data Cleaning ------------------------ #
 
-
-# Reading in text file
-brown_df = CSV.read("brown.csv", DataFrame)
-
-brown_data = brown_df[4]
-raw_sentences = split.(brown_data, " ")
-
-#Cleans the tags
-raw_tags = []
-    raw_words = []
-    for sent in raw_sentences
-    raw_tags_temp = []
-    raw_words_temp = []
-    for word in sent
-        ind = findlast(x -> x == '/', word)
-        POS = word[ind+1:end]
-        POS = replace(POS, "bez" => "bbb")
-        POS = replace(POS, "-hl" => "")
-        POS = replace(POS, "-tl" => "")
-        POS = replace(POS, "-nc" => "")
-        POS = replace(POS, "fw-" => "")
-        push!(raw_tags_temp, convert(String,POS))
-        push!(raw_words_temp, lowercase(word[1:ind-1]))
-    end
-    push!(raw_tags, raw_tags_temp)
-    push!(raw_words, raw_words_temp)
-end
-
-#creates the unique POS tags
-unitags = unique.(raw_tags)
-uni = []
-for i in ProgressBar(1:length(unitags))
-    uni = vcat(uni, unitags[i])
-    uni = unique(uni)
-end
-
 #Masks a random word in each sentence
 function word_masker(sentences, tags)
 
@@ -77,7 +41,7 @@ function makeDataPOS(sentences, POS, bert_model, wordpiece, tokenizer, vocab, U)
     sentencesVecs = []
     POSVecs = []
     for i in ProgressBar(1:length(sentences))
-        splitind = findall( x -> x == "/MASK/", sentences[i])[1]
+        splitind = findall(x -> x == "/MASK/", sentences[i])[1]
         text1 = ""
         text2 = ""
         for ii in 1:length(sentences[i])
@@ -109,6 +73,33 @@ function makeDataPOS(sentences, POS, bert_model, wordpiece, tokenizer, vocab, U)
     return [sentencesVecs,POSVecs]
 end
 
+function toBert(sentence,bert_model, wordpiece, tokenizer, vocab)
+    splitind = findall(x -> x == "/MASK/", sentence)[1]
+    text1 = ""
+    text2 = ""
+    for ii in 1:length(sentence)
+        if ii < splitind
+        text1 = text1 * " " * sentence[ii]
+        end
+        if ii > splitind
+        text2 = text2 * " " * sentence[ii]
+        end
+    end
+    text1 = text1 |> tokenizer |> wordpiece
+    text2 = text2 |> tokenizer |> wordpiece
+
+    text = ["[CLS]"; text1; "[MASK]"; text2; "[SEP]"]
+    ind = findall(x -> x == "[MASK]", text)
+    token_indices = vocab(text)
+    segment_indices = [fill(1, length(text1)+length(text2) + 3);]
+
+    sample = (tok = token_indices, segment = segment_indices)
+
+    bert_embedding = sample |> bert_model.embed
+    feature_tensors = bert_embedding |> bert_model.transformers
+    return feature_tensors[:,ind]
+end
+
 function vecvec_to_matrix(vecvec)
     dim1 = length(vecvec)
     dim2 = length(vecvec[1])
@@ -130,6 +121,75 @@ function minNorm(P, C)
     return minimum(normz)
 end
 
+function minNormEx(P, C)
+    normz = []
+    for p in P
+        if p != C
+            push!(normz, norm(p - C))
+        end
+    end
+    return minimum(normz)
+end
+
+function to2GramsFastText(word,embtable)
+    Grams = []
+    for i in 1:length(word)-1
+        push!(Grams, word[i:i+1])
+    end
+    vec = zeros(Float32, 300)
+    for x in Grams
+        vec += get(embtable, x, zeros(300))
+    end
+    if vec == zeros(300) || isnan(vec[1])
+        Grams = []
+        for i in 1:length(word)
+            push!(Grams, word[i])
+        end
+        for x in Grams
+            vec += get(embtable, string(x), zeros(300))
+        end
+        return vec
+    end
+    return (2 + rand()) .* vec ./ norm(vec)
+end
+
+
+
+# Reading in text file
+brown_df = CSV.read("brown.csv", DataFrame)
+
+brown_data = brown_df[4]
+raw_sentences = split.(brown_data, " ")
+
+#Cleans the tags
+raw_tags = []
+    raw_words = []
+    for sent in ProgressBar(raw_sentences)
+    raw_tags_temp = []
+    raw_words_temp = []
+    for word in sent
+        ind = findlast(x -> x == '/', word)
+        POS = word[ind+1:end]
+        POS = replace(POS, "bez" => "bbb")
+        POS = replace(POS, "-hl" => "")
+        POS = replace(POS, "-tl" => "")
+        POS = replace(POS, "-nc" => "")
+        POS = replace(POS, "fw-" => "")
+        push!(raw_tags_temp, convert(String,POS))
+        push!(raw_words_temp, lowercase(word[1:ind-1]))
+    end
+    push!(raw_tags, raw_tags_temp)
+    push!(raw_words, raw_words_temp)
+end
+
+#creates the unique POS tags
+unitags = unique.(raw_tags)
+uni = []
+for i in ProgressBar(1:length(unitags))
+    uni = vcat(uni, unitags[i])
+    uni = unique(uni)
+end
+
 
 Random.seed!(256)
 act_word, act_pos, new_sentences = word_masker(raw_words, raw_tags)
@@ -145,6 +205,7 @@ BERTEMB = makeDataPOS(new_sentences,act_pos,bert_model, wordpiece, tokenizer, vo
 S, P = vecvec_to_matrix(BERTEMB[1]),vecvec_to_matrix(BERTEMB[2])
 
 #Splitting the masked word embedding into training, testing, calibration at ≈.9, .09,.01
+
 trainingInd = sample(1:size(S)[1],50000,replace = false)
 extraInd = filter(x->x∉trainingInd, 1:size(S)[1])
 trainS, trainP = S[trainingInd,:], P[trainingInd,:]
@@ -183,7 +244,7 @@ a_i = []
 
 correct = []
     eff = []
-    epsilon = .05
+    epsilon = .2
     Q = quantile(a_i, 1-epsilon)
     for i in ProgressBar(1:size(testS)[1])
         pred = []
@@ -205,12 +266,18 @@ correct = []
         print("         ",1-mean(correct), "         ", mean(eff), "         ", median(eff), "         " ,quantile(eff,.75)-quantile(eff,.25))
     end
 
-
+function minNorm(P, C)
+    normz = []
+    for p in P
+        push!(normz, norm(p - C))
+    end
+    return minimum(normz)
+end
 #------------------------
 #Bert's Method
 
-
-DL = Flux.Data.DataLoader(((trainS)',(trainP)'), batchsize = 10000, shuffle = true)
+ind = sample(1:50000,50000,replace = false)
+DL = Flux.Data.DataLoader(((trainS[ind,:])',(trainP[ind,:])'), batchsize = 10000, shuffle = true)
 
 regnet =Chain(
     Dense(768, 500, gelu),
@@ -230,7 +297,7 @@ testmode!(regnet, false)
 losses = []
 batch  = 1000
 epochs = 1000
-eta = .001
+eta = .005
 opt = RADAM(eta)
 for i in ProgressBar(1:epochs)
     Flux.train!(loss, ps, DL, opt)
@@ -246,9 +313,9 @@ end
 testmode!(regnet)
 
 correct = 0
-    a_i = zeros(size(calibS)[1])
+    a_i1 = zeros(size(calibS)[1])
     for i in ProgressBar(1:size(calibS)[1])
-        a_i[i] = (1 - sum(regnet(calibS[i,:]) .* calibP[i,:]))
+        a_i1[i] = (1 - sum(regnet(calibS[i,:]) .* calibP[i,:]))
         if argmax(calibP[i,:]) == argmax(regnet(calibS[i,:]))
             correct += 1
         end
@@ -257,8 +324,8 @@ correct = 0
 
 correct = []
     eff = []
-    epsilon = .05
-    Q = quantile(a_i,1-epsilon)
+    epsilon = .01
+    Q1 = quantile(a_i1,1-epsilon)
     for ii in ProgressBar(1:size(testP)[1])
         Pred = (1 .- regnet(testS[ii, :])) .<= Q
         push!(correct, Pred[argmax(testP[ii,:])] == 1)
@@ -269,83 +336,166 @@ correct = []
 
 using BSON: @save
 
-BSON.@save "BERTPOSMODEL.bson" regnet
+BSON.@save "BERTPOSMODELFinal.bson" regnet
+
+using BSON: @load
+
+BSON.@load "BERTPOSMODELFinal.bson" regnet
 
 #-----------------
-vocab = Vocabulary(wordpiece)
-
-markline(sent) = ["[CLS]"; sent; "[SEP]"]
-
-function preprocess(batch)
-    sentence = markline.(wordpiece.(tokenizer.(batch[1])))
-    mask = getmask(sentence)
-    tok = vocab(sentence)
-    segment = fill!(similar(tok), 1)
-
-    label = onehotbatch(batch[2], uni)
-    return (tok = tok, segment = segment), uni, mask
+brown_files = brown_df[1]
+brown_paras = brown_df[2]
+brown_files_uni = unique(brown_files)
+mapFileToNum = Dict()
+for i in 1:length(brown_files_uni)
+    mapFileToNum[brown_files_uni[i]] = i
+end
+brown_in_files = [[] for i=1:length(brown_files_uni)]
+for i in ProgressBar(1:length(brown_files))
+    append!(brown_in_files[mapFileToNum[brown_files[i]]], raw_words[i])
 end
 
-function get_batch(c::Channel, n=1)
-    res = Vector(undef, n)
-    for (i, x) ∈ enumerate(c)
-        res[i] = x
-        i >= n && break
+unique_words = unique(Base.Iterators.flatten(brown_in_files))
+
+
+POSExamples = Dict()
+    for i in ProgressBar(1:length(raw_words))
+    for ii in 1:length(raw_words[i])
+        POSExamples[raw_tags[i][ii]] = append!(get(POSExamples, raw_tags[i][ii], []),[raw_words[i][ii]])
     end
-    isassigned(res, n) ? batched(res) : nothing
 end
 
-clf = (Chain(
-        Dropout(0.1),
-        Dense(size(_bert_model.classifier.pooler.W, 1), length(uni)),
-        logsoftmax
-))
-
-bert_model = gpu(
-    set_classifier(_bert_model,
-                    (
-                        pooler = _bert_model.classifier.pooler,
-                        clf = clf
-                    )
-                  )
-)
-
-function loss(data, label, mask=nothing)
-    e = bert_model.embed(data)
-    t = bert_model.transformers(e, mask)
-
-    p = bert_model.classifier.clf(
-        bert_model.classifier.pooler(
-            t[:,1,:]
-        )
-    )
-
-    l = Basic.logcrossentropy(label, p)
-    return l, p
+unilength = []
+for x in uni
+    push!(unilength,length(unique(POSExamples[x])))
 end
 
-function train!()
-    global Batch
-    global Epoch
-    @info "start training:"
-    for e = 1:Epoch
-        @info "epoch: $e"
-        datas = datas_tr # Training data generated
+embeddings_fasttext = load_embeddings(FastText_Text{:en}, 2)
+embtable = Dict(word=>embeddings_fasttext.embeddings[:,ii] for (ii,word) in ProgressBar(enumerate(embeddings_fasttext.vocab)))
 
-        i = 1
-        al::Float64 = 0.
-        while (batch = get_batch(datas, Batch)) !== nothing
-            data, label, mask = todevice(preprocess(batch))
-            l, p = loss(data, label, mask)
-            # @show l
-            a = acc(p, label)
-            al += a
-            grad = gradient(()->l, ps)
-            i+=1
-            update!(opt, ps, grad)
-            i%16==0 && @show al/i
+missing_words = []
+for x in unique_words
+    if get(embtable, x, 0) == 0
+        push!(missing_words, x)
+    end
+end
+
+bad = 0
+    extra_missing_words = []
+    for x in missing_words
+    embtable[x] = to2GramsFastText(x, embtable)
+    if embtable[x] == zeros(300)
+        bad += 1
+        push!(extra_missing_words, x)
+    end
+end
+embtable["``"] = embtable["''"]
+
+
+new_sentences_in_files = [[] for i=1:length(brown_files_uni)]
+    for i in ProgressBar(1:length(new_sentences))
+        append!(new_sentences_in_files[mapFileToNum[brown_files[i]]], new_sentences[i])
+    end
+
+
+uni_new_sentences_in_files = unique.(new_sentences_in_files)
+uni_new_sentences_in_files = filter.(x -> x != "/MASK/", uni_new_sentences_in_files)
+uni_new_sentences_embeddings = [[] for i=1:length(brown_in_files)]
+for (i,x) in enumerate(uni_new_sentences_in_files)
+    for y in x
+        push!(uni_new_sentences_embeddings[i], embtable[y])
+    end
+end
+
+unique_words_embeddings = []
+    for (x,i) in zip(unique_words, ProgressBar(1:length(unique_words)))
+    push!(unique_words_embeddings,minNorm(uni_new_sentences_embeddings[i], embtable["dislikes"]))
+end
+
+maskedindicies = []
+for i in 1:500
+    push!(maskedindicies, findall(x -> x == "/MASK/", new_sentences_in_files[i]))
+end
+
+wordIndTrain = sample(1:500, 420, replace = false)
+wordIndExtra = filter(x -> x ∉ wordIndTrain, 1:500)
+wordIndCalib = sample(wordIndExtra, 50, replace = false)
+wordIndTest = filter(x -> x ∉ wordIndCalib, wordIndExtra)
+
+trainMaskedInd = maskedindicies[wordIndTrain]
+calibMaskedInd = maskedindicies[wordIndCalib]
+testMaskedInd = maskedindicies[wordIndTest]
+
+a_i2 = []
+    for x in ProgressBar(wordIndTrain)
+    for y in maskedindicies[x]
+        push!(a_i2,minNormEx(uni_new_sentences_embeddings[x], embtable[brown_in_files[x][y]]))
+    end
+end
+
+epsilon = .1
+    sentenceNum = 0
+    eff = []
+    correct = []
+    Q2 = quantile(a_i2, 1-epsilon)
+    for x in ProgressBar(wordIndExtra)
+    Pred = []
+    for y in maskedindicies[x]
+        if maskedindicies[x][1] == y
+            for z in unique_words
+                if minNormEx(uni_new_sentences_embeddings[x], embtable[z]) <= Q2
+                    push!(Pred, z)
+                end
+            end
+            push!(eff, length(Pred))
         end
-
-        test()
+        push!(correct, brown_in_files[x][y] in Pred)
     end
+    print( 1-mean(correct), "        ", median(eff), "           ")
+    end
+
+
+e1 = .01
+e2 = .09
+Q1 = quantile(a_i1, 1-e1)
+Q2 = quantile(a_i2, 1-e2)
+PSet = []
+    V = vec(regnet(toBert(["the","dog", "/MASK/", "to", "fast", ",", "he", "barked", "the", "whole", "time"], bert_model, wordpiece, tokenizer, vocab)))
+    Pred = (1 .- V) .<= Q1
+    Pset = []
+    for i in 1:length(Pred)
+    if Pred[i] == 1
+        push!(PSet, uni[i])
+    end
+end
+
+WPSet = []
+    MS = Matrix(undef,length(getVocab(POSExamples, PSet)), 2)
+    EV = embedVector(["the","dog", "to", "fast", ",", "he", "barked", "the", "whole", "time"],embtable)
+    for (i,z) in enumerate(getVocab(POSExamples, PSet))
+        M = minNorm(EV, embtable[z])
+        MS[i,:] = [M,z]
+    if M <= Q2
+        push!(WPSet, z)
+    end
+end
+
+function predictBlank(a_i1, a_i2, e1, e2, transcript, sentence, vocabulary)
+    Q1 =
+end
+
+function embedVector(vector,embtable)
+    embvec = []
+    for x in vector
+        push!(embvec, embtable[x])
+    end
+    return embvec
+end
+
+function getVocab(POSExamples, PSet)
+    newVocab = []
+    for x in PSet
+        append!(newVocab, POSExamples[x])
+    end
+    return unique(newVocab)
 end
