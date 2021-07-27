@@ -8,8 +8,8 @@
 #BSUB -oo /share/hmmrs/jferrel3/NLP/results.%J
 #BSUB -e /share/hmmrs/jferrel3/NLP/errors.%J
 
-module load cuda/11.0
+module load cuda/10.2
 module load julia
-setenv CUDA_VISIBLE_DEVICES = 3
+setenv CUDA_VISIBLE_DEVICES 3
 setenv JULIA_DEPOT_PATH /share/hmmrs/jferrel3/julia
-julia nextword_softmax_cluster.jl
+julia blstm_tensor.jl
