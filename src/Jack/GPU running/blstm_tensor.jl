@@ -81,7 +81,7 @@ dl_train = Flux.Data.DataLoader((train, train_class),
 forward = LSTM(300, 150) |> gpu
 backward = LSTM(300, 150) |> gpu
 embedding = Dense(300, 300)|> gpu
-predictor = Chain(Dense(300, 250, relu), Dense(250,190), softmax)|> gpu
+predictor = Chain(Dropout(0.2, dims=0.1), Dense(300, 250, relu), Dense(250,190), softmax)|> gpu
 
 function BLSTM(x)
 
@@ -113,7 +113,7 @@ model(x) = predictor(vectorizer(x)) |> gpu
 
 
 # Optimizer
-opt = RADAM()
+opt = Flux.Optimiser(ExpDecay(0.01, 0.1, 1, 1e-4), RADAM())
 
 # Parameters
 ps = Flux.params((forward, backward, embedding, predictor))
@@ -127,7 +127,7 @@ function loss(x, y)
 end
 
 # Training the Neural Net, Tracking Loss Progression
-epochs = 5
+epochs = 10
 traceY = []
 println("Beginning training")
 
@@ -146,9 +146,12 @@ end
 
 println("training complete")
 model = model |> cpu
+
+weights = params(model)
+
 using BSON: @save
 
-BSON.@save "lstm_mod.bson" model
+BSON.@save "lstm_params.bson" weights
 
 JLD.save("trace.jld", "trace", traceY)
 
