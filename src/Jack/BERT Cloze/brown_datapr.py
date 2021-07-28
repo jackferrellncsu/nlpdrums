@@ -43,6 +43,7 @@ mask_inds.head()
 
 #Create new DF with cleaned sentences and masked inds
 new_df = pd.DataFrame([clean_sentences, mask_inds]).transpose()
+new_df.columns = ['clean_sentences',  'mask_inds']
 new_df.head()
 
 train_cal, test = train_test_split(new_df, test_size=0.25, shuffle=True)

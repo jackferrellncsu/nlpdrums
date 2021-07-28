@@ -2,6 +2,9 @@ from os import sched_get_priority_max
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from transformers.utils.dummy_pt_objects import CanineLayer
+import torch
+from torch.utils.data import DataLoader
+import math
 
 
 
@@ -26,10 +29,10 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 #input.input_ids is identical to performing following operations on every sentence:
 #---------------------Following Tutorial--------------------------------------------------#
 #Splits text into tokens
-text = "[CLS] "+  cal_cs_red[3] + " [SEP]"
+text = "[CLS] "+  cal_clean_sents[3] + " [SEP]"
 tokenized_text = tokenizer.tokenize(text)
 print(tokenized_text)
-tokenized_text[20] = "[MASK]"
+tokenized_text[5] = "[MASK]"
 print(tokenized_text)
 masked_index = tokenized_text.index("[MASK]")
 
@@ -59,14 +62,61 @@ print(tokenized_text)
 print(predicted_token)
 #----------------------Real Work---------------------------------------------------------#
 #Will work with input for big data moves:
-input = tokenizer(cal_clean_sents, return_tensors = "pt", max_length=512, truncation=True, padding="max_length")
+input = tokenizer(cal_clean_sents[1:50], return_tensors = "pt", max_length=128, truncation=True, padding="max_length")
+
 
 #clone input_ids to get labels tensor
 input["labels"] = input.input_ids.detach().clone()
 
-mask_data(input, cal_mask_inds)
+mask_data(input, cal_mask_inds[1:50])
+
+class BrownDataset(torch.utils.data.Dataset):
+    def __init__(self, encodings):
+        self.encodings = encodings
+
+    def _getitem__(self, idx):
+        return {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+    
+    def __len__(self):
+        return len(self.encodings.input_ids)
+
+calibration_dataset = BrownDataset(input)
+
+cal_dl = DataLoader(calibration_dataset, batch_size = 50)
 
 outputs = model(**input)
+
+math.ceil(len(cal_clean_sents) / 50)
+
+sent_number = 0
+model_outputs = {}
+
+for i in range(math.ceil(len(cal_clean_sents) / 50)):
+    begin = i*50
+    end = (i+1)*50
+    if i >= math.ceil(len(cal_clean_sents) / 50)-1:
+        i = len(cal_clean_sents )-1
+        end = len(cal_clean_sents)
+    
+    batch = cal_clean_sents[begin:end]
+    batch_inds = cal_mask_inds[begin:end]
+
+    input = tokenizer(batch, return_tensors = "pt", max_length=128, truncation=True, padding="max_length")
+    input["labels"] = input.input_ids.detach().clone()
+
+    mask_data(input, batch_inds)
+
+    outputs  = model(**input)
+    model_outputs[sent_number] = outputs.logits[sent_number][batch_inds[sent_number]]
+    sent_number += 1
+
+
+    
+
+
+    
+
+
 
 
 predicted_outputs = {}
