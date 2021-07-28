@@ -3,7 +3,7 @@ from numpy import core, result_type
 from torch._C import device
 from transformers import BertTokenizer, BertForMaskedLM
 import torch
-import pandas as p
+import pandas as pd
 import random
 from pandas.core.series import Series 
 from transformers import TrainingArguments
@@ -14,7 +14,13 @@ from sklearn.model_selection import train_test_split as tt_split
 
 random.seed(24)
 
-master = p.read_csv("src/Jack/Data/brown_master.csv", sep = "\t")
+brown_data = pd.read_csv("src/Jack/Data/brown_master.csv", sep = "\t")
+
+train_cal, test = train_test_split(brown_data, test_size=0.25, shuffle=True)
+train, cal = train_test_split(train_cal, test_size=0.25, shuffle=True)
+train_cal = None
+
+
 
 
 

@@ -1,5 +1,5 @@
 from json import load
-import pandas as p
+import pandas as pd
 import os
 import random
 from sklearn.model_selection import train_test_split
@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 #load in sentences df
 #Not put back together yet, in (pre-bert) token form
 def load_sentencesdf():
-    raw_data = p.read_csv("src/Jack/Data/brown.csv")
+    raw_data = pd.read_csv("src/Jack/Data/brown.csv")
     sentences = raw_data["raw_text"].str.split(expand=True)
     sentences = sentences.apply(lambda x: x.str.rsplit("/").str[0])
     sentences.insert(180, "mask_ind", None)
@@ -42,7 +42,7 @@ mask_inds = get_masked_inds(sentences)
 mask_inds.head()
 
 #Create new DF with cleaned sentences and masked inds
-new_df = p.DataFrame([clean_sentences, mask_inds]).transpose()
+new_df = pd.DataFrame([clean_sentences, mask_inds]).transpose()
 new_df.head()
 
 train_cal, test = train_test_split(new_df, test_size=0.25, shuffle=True)
