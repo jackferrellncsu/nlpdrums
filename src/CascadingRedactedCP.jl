@@ -153,7 +153,7 @@ for i in ProgressBar(1:length(a_i1))
     a_i1[i] = 1 - sum(regnet(cS[i,:]) .* cP[i,:])
 end
 
-BSON.@save "BertUnmaskedPOS.bson" regnet
+BSON.@load "BERTPOSMODELFinal.bson" regnet
 #----------------------
 
 #Splitting the whole corpus by words
@@ -257,55 +257,55 @@ actPOSTest = []
 end
 
 #Cascading conformal predictions
-ϵ1 = .02
-    ϵ2 = .08
+MM = py"getVocabOrder"(unique_words)
+vocabOrder = MM[1,:]
+indicies = MM[2,:]
+ϵ1 = 0
+    ϵ2 = .3
     Q1 = quantile(a_i1, 1 - ϵ1)
     Q2 = quantile(a_i2, 1 - ϵ2)
     counter = 1
-    correct1 = []
-    correct2 = []
-    eff1 = []
-    eff2 = []
-    for x in ProgressBar(testS[1:5])
-        for y in x
-            B = toBert(y,bert_model,wordpiece,tokenizer,vocab)
-            V = vec(regnet(B))
-            Pred = (1 .- V) .<= Q1
-            PSet = []
-            for i in 1:length(Pred)
-                if Pred[i] == 1
-                    push!(PSet, uni[i])
-                end
-            end
-            push!(correct1, actPOSTest[counter] in PSet)
-            push!(eff1, length(PSet))
-
+    pvals = []
+    for x in ProgressBar(testS)
+        for y in ProgressBar(x)
             before,after = split(vectorToString(y), "/MASK/")
-            WPSet = py"getPreds"(before,after, quantile(a_i2,1-ϵ2), unique_words)
-            push!(correct2, actWordTest[counter] in WPSet)
-            push!(eff2, length(WPSet))
-            counter += 1
+            scores = py"getPredsVector"(before , after , unique_words)[indicies]
+            pval = toPval(scores, a_i2)
+            push!(pvals,pval)
         end
-        #print("      ", 1-mean(correct1), "    ", mean(eff1), "     ", median(eff1),"    ", 1-mean(correct2), "    ", mean(eff2), "     ", median(eff2),"    ")
-        print("      ", 1-mean(correct1), "    ", mean(eff1), "     ", median(eff1),"      ", 1-mean(correct2), "    ", mean(eff2), "     ", median(eff2),"    ")
     end
 
+scriterion = mean(sum.(pvals))
+
+function toPval(scores,a_i)
+    a_i = sort(a_i)
+    L = length(a_i)
+    pvaltemp = []
+    for x in scores
+        push!(pvaltemp,(searchsortedlast(a_i, x)/length(a_i)))
+    end
+    return pvaltemp
+end
 
 #NonConformities
 # minNormEx(EM,embtable[actWord[counter]]) * -log(POccurence[actWord[counter]])
 # minNormEx(EV, embtable[z]) * -log(POccurence[z])
 #END
 allwords = py"allStubs"()
-trans = "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a /MASK/ ."
-    ϵ = .1
+trans = vectorToString(testS[1][1])
+    ϵ = .3
     before,after = split(trans, "/MASK/")
+    blacklist = split(trans, " ")
+    afterwords = filter(x -> x ∉ blacklist, allwords)
     #WPSet = py"getPreds"(before,after, quantile(a_i2,1-ϵ2), allwords)
-    WPSet = py"getPreds"(before,after, quantile(a_i2,1-ϵ), allwords)
+    WPSet = py"getPreds"(before,after, quantile(a_i2,1-ϵ), unique_words)
 
 
 
 ENV["PYTHON"] = "/Users/mlovig/PycharmProjects/pythonProject1/venv/bin/python"
 Pkg.build("PyCall")
+
+
 using PyCall
 
 py"""
@@ -315,7 +315,7 @@ py"""
     import torch
     tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
     model = BertForMaskedLM.from_pretrained('bert-large-uncased',    return_dict = True)
-"""
+    """
 
 py"""
 def allStubs():
@@ -340,6 +340,32 @@ py"""
             if (1-scores[i]) <= Q and tokenizer.decode([i]) in vocab:
                 Pred.append(tokenizer.decode([i]))
         return Pred
+    """
+
+py"""
+    def getPredsVector(textbefore, textafter, vocab):
+        text = textbefore + tokenizer.mask_token + textafter
+        input = tokenizer.encode_plus(text, return_tensors = "pt")
+        mask_index = torch.where(input["input_ids"][0] == tokenizer.mask_token_id)
+        output = model(**input)
+        logits = output.logits
+        softmax = F.softmax(logits, dim = -1)
+        mask_word = softmax[0, mask_index, :]
+        scores = mask_word.detach().numpy().flatten()
+        Pred = []
+        Words = []
+        return scores
+    """
+
+py"""
+    def getVocabOrder(vocab):
+        Words = []
+        inds = []
+        for i in range(scores.size):
+            if tokenizer.decode([i]) in vocab:
+                Words.append(tokenizer.decode([i]))
+                inds.append(i)
+        return [Words,inds]
     """
 
 py"""
@@ -389,12 +415,17 @@ function vectorToString(vec)
     return sent
 end
 
-seed = 100
+
+#--------------------
+
+seed = 24
 
 Random.seed!(seed)
-trainS, calibS, testS = TrainCalibTest(SB, .8,.1)
+trainS, testS = SplitVector(SB, .9)
+trainS, calibS = SplitVector(trainS, .9)
 Random.seed!(seed)
-trainP, calibP, testP = TrainCalibTest(PB, .8,.1)
+trainP, testP = SplitVector(PB, .9,)
+trainP, calibP = SplitVector(trainP, .9)
 
 Random.seed!(seed)
 bertPOSVecs = []
@@ -418,6 +449,7 @@ P = vecvec_to_matrix(bertTAGSVecs)
 ind = sample(1:size(S)[1], 45872, replace = false)
 DL = Flux.Data.DataLoader(((S[ind,:])',(P[ind,:])'), batchsize = 10000, shuffle = true)
 
+BSON.@load "/Users/mlovig/Documents/GitHub/nlpdrums/src/Maxwell/BertUnmaskedPOS.bson" regnet
 #Model Architecture
 regnet =Chain(
     Dense(768, 600, gelu),
@@ -452,23 +484,54 @@ for i in ProgressBar(1:length(calibS))
 end
 
 Random.seed!(500)
-    correctset = []
-    correct = []
-    eff = []
-    ϵ3 = .1
-    Q3 = quantile(a_i3, 1-ϵ3)
+    pvals = []
+    scores = []
+    actWords = []
     for i in ProgressBar(1:length(testS))
         r = rand(1:length(testS[i]))
         B = toBertNoMask(testS[i],bert_model,wordpiece,tokenizer,vocab,r)
         V = regnet(B)
         C = Flux.onehot(testP[i][r], uni)
-        Pred = (1 .- V) .<= Q3
-        push!(correct, argmax(C) == argmax(V))
-        push!(eff, sum(Pred))
-        if sum(Pred) == 1
-            push!(correctset, sum(C .* Pred) == 1)
-        end
+        push!(actWords, C)
+        push!(scores, V)
+        pval = toPval(V, a_i3)
+        push!(pvals,pval)
     end
+
+
+correct = sum(argmax.(actWords) .== argmax.(pvals)) /length(pvals)
+credibility = mean(maximum.(pvals))
+OP = mean(dot.(pvals,actWords))
+OF = mean(dot.(pvals, notVec.(actWords)) / length(pvals[1]))
+
+global epsilon = .01
+sizes = sum.(greatorVec.(pvals))
+ncrit = mean(sizes)
+empconf = mean(returnIndex.(pvals, argmax.(actWords)) .> epsilon)
+histogram(sizes)
+
+function greatorVec(vec)
+    return vec .> epsilon
+end
+
+function returnIndex(vec, ind)
+    return vec[ind]
+end
+
+function notVec(vec)
+    return abs.(1 .- vec)
+end
+function toPval(scores,a_i)
+    a_i = sort(a_i)
+    L = length(a_i)
+    pvaltemp = []
+    for x in scores
+        push!(pvaltemp,1-((searchsortedfirst(a_i, 1 - x)/length(a_i))))
+    end
+    return pvaltemp
+end
+
+
 
 effbyperc = []
 perc = []
