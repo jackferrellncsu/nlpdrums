@@ -147,7 +147,16 @@ end
 println("training complete")
 model = model |> cpu
 
-weights = params(model)
+forward = forward |> cpu
+backward = backward |> cpu
+embedding = embedding |> cpu
+predictor = predictor |> cpu
+
+weights = []
+push!(forward, Flux.params(forward))
+push!(backward, Flux.params(backward))
+push!(embedding, Flux.params(embedding))
+push!(predictor, Flux.params(predictor))
 
 using BSON: @save
 

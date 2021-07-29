@@ -1,7 +1,7 @@
 include("/Users/mlovig/Documents/GitHub/nlpdrums/src/BertPosFunctions.jl")
 
 #Read in the Brown Corpus
-brown_df = CSV.read("brown.csv", DataFrame)
+brown_df = CSV.read("/Users/mlovig/Downloads/archive-3/brown.csv", DataFrame)
 #Get the word/POS column
 brown_data = brown_df[4]
 #Split based on spacing
@@ -148,14 +148,16 @@ calibBERTEMB = toBertData(flatcalib, actPOSCalib , bert_model, wordpiece, tokeni
 cS, cP = vecvec_to_matrix(calibBERTEMB[1]),vecvec_to_matrix(calibBERTEMB[2])
 
 #Making calibration non-conformities
-a_i1 = zeros(size(calibSB)[1])
+a_i1 = zeros(size(cS)[1])
 for i in ProgressBar(1:length(a_i1))
     a_i1[i] = 1 - sum(regnet(cS[i,:]) .* cP[i,:])
 end
 
-BSON.@save "TRANSMODELFINAL.bson" regnet
+BSON.@load "BERTPOSMODELFinal.bson" regnet
 #----------------------
+
 #Splitting the whole corpus by words
+
 split_words = reduce(vcat,raw_words)
 split_tags = reduce(vcat, raw_tags)
 
@@ -168,14 +170,18 @@ POSExamples = Dict()
         POSExamples[split_tags[i]] = (append!(get(POSExamples, split_tags[i], []),[split_words[i]]))
     end
 
-for x in uni
-    POSExamples[x] = unique(POSExamples[x])
+POSExamplesDist = Dict()
+for x in ProgressBar(uni)
+    PX = POSExamples[x]
+    for y in ProgressBar(unique(PX))
+        POSExamplesDist[x,y] = sum(PX .== y)/length(PX)
+    end
 end
 
 #Load the fast test embeddigs
 embeddings_fasttext = load_embeddings(FastText_Text{:en}, 2)
 embtable = Dict(word=>embeddings_fasttext.embeddings[:,ii] for (ii,word) in ProgressBar(enumerate(embeddings_fasttext.vocab)))
-
+all_words = [v for (k,v) in embtable]
 #create unique embeddings out of 2-grams
 for x in unique_words
     if get(embtable, x, 0) == 0
@@ -196,20 +202,48 @@ end
 a_i2 = []
     counter = 1
     for x in ProgressBar(trainS)
-        EM = unique(embedVector(reduce(vcat, x), embtable))
+        EV = unique(embedVectorNoStop(reduce(vcat, x), embtable))
         for y in x
-            push!(a_i2, (minNormEx(EM,embtable[actWord[counter]]) + minNorm(EM,embtable[actWord[counter]])))
+            if length(y) > 2
+                    EVL = unique(embedVector(y, embtable))
+                    if Occurence[actWord[counter]] > 7
+                        push!(a_i2, (meanNorm(EV, embtable[actWord[counter]])) + (minNormEx(EVL, embtable[actWord[counter]])))
+                    else
+                      push!(a_i2, 10)
+                  end
+            end
             counter += 1
         end
     end
+
     counter = 1
     for x in ProgressBar(calibS)
-        EM = unique(embedVector(reduce(vcat, x), embtable))
+        EV = unique(embedVectorNoStop(reduce(vcat, x), embtable))
         for y in x
-            push!(a_i2, (minNormEx(EM,embtable[actWordCalib[counter]]) + minNorm(EM,embtable[actWordCalib[counter]])))
+            if length(y) > 2
+                EVL = unique(embedVector(y, embtable))
+                if Occurence[actWord[counter]] > 7
+                    push!(a_i2, (meanNorm(EV, embtable[actWordCalib[counter]])) + (minNormEx(EVL, embtable[actWordCalib[counter]])))
+                else
+                    push!(a_i2, 10)
+                end
+            end
             counter += 1
         end
     end
+
+a_i2 = []
+    counter = 1
+        for x in ProgressBar(calibS)
+            EV = unique(embedVector(reduce(vcat, x), embtable))
+            for y in x
+                if get(ContextVectors, actWordCalib[counter], 0 )!=0 && length(y) > 2
+                    ES = embedVectorSUM(y, embtable)
+                    push!(a_i2, (meanNormEx(EV, embtable[actWordCalib[counter]])) + 3*minNorm(ContextVectors[actWordCalib[counter]],ES))
+                end
+                counter += 1
+            end
+        end
 
 #Common peice of code
 actPOSTest = []
@@ -223,44 +257,301 @@ actPOSTest = []
 end
 
 #Cascading conformal predictions
-ϵ1 = .05
-    ϵ2 = .05
+MM = py"getVocabOrder"(unique_words)
+vocabOrder = MM[1,:]
+indicies = MM[2,:]
+ϵ1 = 0
+    ϵ2 = .3
     Q1 = quantile(a_i1, 1 - ϵ1)
     Q2 = quantile(a_i2, 1 - ϵ2)
     counter = 1
-    correct1 = []
-    correct2 = []
-    eff1 = []
-    eff2 = []
+    pvals = []
     for x in ProgressBar(testS)
-        wholetrans = reduce(vcat, x)
-        EV = embedVector(unique(wholetrans), embtable)
-        for y in x
-            B = toBert(y,bert_model,wordpiece,tokenizer,vocab)
-            V = vec(regnet(B))
-            Pred = (1 .- V) .<= Q1
-            PSet = []
-            for i in 1:length(Pred)
-                if Pred[i] == 1
-                    push!(PSet, uni[i])
-                end
-            end
-            push!(correct1, actPOSTest[counter] in PSet)
-            push!(eff1, length(PSet))
-            WPSet = []
-            for z in getVocab(POSExamples, PSet)
-                if ((minNormEx(EV, embtable[z]) + minNorm(EV, embtable[z]))) <= Q2
-                    push!(WPSet,z)
-                end
-            end
-            push!(correct2, actWordTest[counter] in WPSet)
-            counter += 1
-            push!(eff2, length(WPSet))
+        for y in ProgressBar(x)
+            before,after = split(vectorToString(y), "/MASK/")
+            scores = py"getPredsVector"(before , after , unique_words)[indicies]
+            pval = toPval(scores, a_i2)
+            push!(pvals,pval)
         end
-        print("      ", 1-mean(correct1), "    ", mean(eff1), "     ", median(eff1),"    ", 1-mean(correct2), "    ", mean(eff2), "     ", median(eff2),"    ")
     end
 
+scriterion = mean(sum.(pvals))
+
+function toPval(scores,a_i)
+    a_i = sort(a_i)
+    L = length(a_i)
+    pvaltemp = []
+    for x in scores
+        push!(pvaltemp,(searchsortedlast(a_i, x)/length(a_i)))
+    end
+    return pvaltemp
+end
 
 #NonConformities
 # minNormEx(EM,embtable[actWord[counter]]) * -log(POccurence[actWord[counter]])
 # minNormEx(EV, embtable[z]) * -log(POccurence[z])
+#END
+allwords = py"allStubs"()
+trans = vectorToString(testS[1][1])
+    ϵ = .3
+    before,after = split(trans, "/MASK/")
+    blacklist = split(trans, " ")
+    afterwords = filter(x -> x ∉ blacklist, allwords)
+    #WPSet = py"getPreds"(before,after, quantile(a_i2,1-ϵ2), allwords)
+    WPSet = py"getPreds"(before,after, quantile(a_i2,1-ϵ), unique_words)
+
+
+
+ENV["PYTHON"] = "/Users/mlovig/PycharmProjects/pythonProject1/venv/bin/python"
+Pkg.build("PyCall")
+
+
+using PyCall
+
+py"""
+    import numpy
+    from transformers import BertTokenizer, BertForMaskedLM
+    from torch.nn import functional as F
+    import torch
+    tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
+    model = BertForMaskedLM.from_pretrained('bert-large-uncased',    return_dict = True)
+    """
+
+py"""
+def allStubs():
+    words = []
+    for i in range(30522):
+        words.append(tokenizer.decode([i]))
+    return words
+"""
+
+py"""
+    def getPreds(textbefore, textafter, Q, vocab):
+        text = textbefore + tokenizer.mask_token + textafter
+        input = tokenizer.encode_plus(text, return_tensors = "pt")
+        mask_index = torch.where(input["input_ids"][0] == tokenizer.mask_token_id)
+        output = model(**input)
+        logits = output.logits
+        softmax = F.softmax(logits, dim = -1)
+        mask_word = softmax[0, mask_index, :]
+        scores = mask_word.detach().numpy().flatten()
+        Pred = []
+        for i in range(scores.size):
+            if (1-scores[i]) <= Q and tokenizer.decode([i]) in vocab:
+                Pred.append(tokenizer.decode([i]))
+        return Pred
+    """
+
+py"""
+    def getPredsVector(textbefore, textafter, vocab):
+        text = textbefore + tokenizer.mask_token + textafter
+        input = tokenizer.encode_plus(text, return_tensors = "pt")
+        mask_index = torch.where(input["input_ids"][0] == tokenizer.mask_token_id)
+        output = model(**input)
+        logits = output.logits
+        softmax = F.softmax(logits, dim = -1)
+        mask_word = softmax[0, mask_index, :]
+        scores = mask_word.detach().numpy().flatten()
+        Pred = []
+        Words = []
+        return scores
+    """
+
+py"""
+    def getVocabOrder(vocab):
+        Words = []
+        inds = []
+        for i in range(scores.size):
+            if tokenizer.decode([i]) in vocab:
+                Words.append(tokenizer.decode([i]))
+                inds.append(i)
+        return [Words,inds]
+    """
+
+py"""
+    def getCalibScore(textbefore, textafter, word):
+        text = textbefore + tokenizer.mask_token + textafter
+        input = tokenizer.encode_plus(text, return_tensors = "pt")
+        mask_index = torch.where(input["input_ids"][0] == tokenizer.mask_token_id)
+        output = model(**input)
+        logits = output.logits
+        softmax = F.softmax(logits, dim = -1)
+        mask_word = softmax[0, mask_index, :]
+        index = tokenizer.encode([word])[1]
+        scores = mask_word.detach().numpy().flatten()
+        return float(scores[index])
+    """
+
+x = py"getPreds"("hello , my ", " is", .95)
+y = py"getCalibScore"("hello , my ", " is", "name")
+
+training = reduce(vcat, trainS)
+trainingbefore = []
+    trainingafter = []
+    for x in ProgressBar(training)
+        sent = ""
+        for y in x
+            sent = sent * " " * y
+        end
+        a,b = split(sent, "/MASK/")
+        push!(trainingbefore, a)
+        push!(trainingafter, b)
+    end
+
+a_i2 = []
+    for i in ProgressBar(1:length(actWord))
+        push!(a_i2,1-py"getCalibScore"(trainingbefore[i], trainingafter[i], actWord[i]))
+    end
+
+ϵ = .1
+quantile(a_i,1-ϵ)
+x = py"getPreds"("of all ", " , labradors are the best", quantile(a_i,1-ϵ), unique_words)
+
+function vectorToString(vec)
+    sent = ""
+    for y in vec
+        sent = sent * " " * y
+    end
+    return sent
+end
+
+
+#--------------------
+
+seed = 24
+
+Random.seed!(seed)
+trainS, testS = SplitVector(SB, .9)
+trainS, calibS = SplitVector(trainS, .9)
+Random.seed!(seed)
+trainP, testP = SplitVector(PB, .9,)
+trainP, calibP = SplitVector(trainP, .9)
+
+Random.seed!(seed)
+bertPOSVecs = []
+    bertPOSTags = []
+    bertPOSWords = []
+    for i in ProgressBar(1:length(trainS))
+        r = rand(1:length(trainS[i]))
+        push!(bertPOSVecs,toBertNoMask(trainS[i],bert_model,wordpiece,tokenizer,vocab,r))
+        push!(bertPOSTags, trainP[i][r])
+        push!(bertPOSWords, trainS[i][r])
+    end
+
+bertTAGSVecs = []
+for i in ProgressBar(1:length(trainS))
+    push!(bertTAGSVecs, Flux.onehot(bertPOSTags[i],uni))
+end
+
+S = vecvec_to_matrix(bertPOSVecs)
+P = vecvec_to_matrix(bertTAGSVecs)
+
+ind = sample(1:size(S)[1], 45872, replace = false)
+DL = Flux.Data.DataLoader(((S[ind,:])',(P[ind,:])'), batchsize = 10000, shuffle = true)
+
+BSON.@load "/Users/mlovig/Documents/GitHub/nlpdrums/src/Maxwell/BertUnmaskedPOS.bson" regnet
+#Model Architecture
+regnet =Chain(
+    Dense(768, 600, gelu),
+    Dense(600, 500, gelu),
+    Dense(500, 400, gelu),
+    Dense(400, 190,  x -> x), softmax)
+
+#Instantiate Parameters and loss function
+ps = Flux.params(regnet)
+function loss(x, y)
+    return sum(Flux.Losses.crossentropy(regnet(x),y))
+end
+
+#Train the model
+losses = []
+epochs, eta = 100, .01
+    opt = RADAM(eta)
+    for i in ProgressBar(1:epochs)
+    Flux.train!(loss, ps, DL, opt)
+    L = sum(loss.(eachrow(S[1:1000,:]), eachrow(P[1:1000,:])))
+    push!(losses,L)
+    print("         ", L, "        ", sum(regnet(S[1,:]) .* P[1,:]),"       ", eta, "      ")
+end
+
+Random.seed!(100)
+a_i3 = []
+for i in ProgressBar(1:length(calibS))
+    r = rand(1:length(calibS[i]))
+    B = toBertNoMask(calibS[i],bert_model,wordpiece,tokenizer,vocab,r)
+    V = regnet(B)
+    push!(a_i3, 1-sum(Flux.onehot(calibP[i][r], uni) .* V))
+end
+
+Random.seed!(500)
+    pvals = []
+    scores = []
+    actWords = []
+    for i in ProgressBar(1:length(testS))
+        r = rand(1:length(testS[i]))
+        B = toBertNoMask(testS[i],bert_model,wordpiece,tokenizer,vocab,r)
+        V = regnet(B)
+        C = Flux.onehot(testP[i][r], uni)
+        push!(actWords, C)
+        push!(scores, V)
+        pval = toPval(V, a_i3)
+        push!(pvals,pval)
+    end
+
+
+correct = sum(argmax.(actWords) .== argmax.(pvals)) /length(pvals)
+credibility = mean(maximum.(pvals))
+OP = mean(dot.(pvals,actWords))
+OF = mean(dot.(pvals, notVec.(actWords)) / length(pvals[1]))
+
+global epsilon = .01
+sizes = sum.(greatorVec.(pvals))
+ncrit = mean(sizes)
+empconf = mean(returnIndex.(pvals, argmax.(actWords)) .> epsilon)
+histogram(sizes)
+
+function greatorVec(vec)
+    return vec .> epsilon
+end
+
+function returnIndex(vec, ind)
+    return vec[ind]
+end
+
+function notVec(vec)
+    return abs.(1 .- vec)
+end
+function toPval(scores,a_i)
+    a_i = sort(a_i)
+    L = length(a_i)
+    pvaltemp = []
+    for x in scores
+        push!(pvaltemp,1-((searchsortedfirst(a_i, 1 - x)/length(a_i))))
+    end
+    return pvaltemp
+end
+
+
+
+effbyperc = []
+perc = []
+for ii in ProgressBar(1:19)
+    Random.seed!(500)
+        correctset = []
+        correct = []
+        eff = []
+        ϵ3 = ii/20
+        Q3 = quantile(a_i3, 1-ϵ3)
+        for i in ProgressBar(1:length(testS))
+            r = rand(1:length(testS[i]))
+            B = toBertNoMask(testS[i],bert_model,wordpiece,tokenizer,vocab,r)
+            V = regnet(B)
+            C = Flux.onehot(testP[i][r], uni)
+            Pred = (1 .- V) .<= Q3
+            push!(correct, argmax(C) == argmax(V))
+            push!(eff, sum(Pred))
+            push!(correctset, sum(C .* Pred) == 1)
+        end
+    push!(perc, ii/20)
+    push!(effbyperc, mean(correctset))
+end
