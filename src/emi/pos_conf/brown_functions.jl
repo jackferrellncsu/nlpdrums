@@ -1,14 +1,10 @@
-using SparseArrays
-using SparseArrayKit
 using JLD
-using Word2Vec
 using LinearAlgebra
 using Statistics
 using Embeddings
 using Flux
 using Random
 using DataFrames
-using Lathe.preprocess: TrainTestSplit
 using Plots
 using StatsBase
 using BSON
@@ -273,10 +269,10 @@ Parameter x_mat (Array{Float32, 3}) - Tensor of word embeddings for each
 Parameter y_mat (Matrix{Float32}) - Matrix of one hot vectors corresponding to
     the tensor of word embeddings.
 
-Return train_x (Array{Float32, 3}) - Training tensor for model
-Return test_x  (Array{Float32, 3}) - Testing tensor for model
-Return train_y (Matrix{Float32}) - Training class for model
-Return test_y (Matrix{Float32}) - Testing class for model
+Return train_x (Array{Float32, 3}) - Training tensor for model.
+Return test_x  (Array{Float32, 3}) - Testing tensor for model.
+Return train_y (Matrix{Float32}) - Training class for model.
+Return test_y (Matrix{Float32}) - Testing class for model.
 """
 function SampleMats(x_mat, y_mat, prop = 0.9)
 
@@ -297,16 +293,23 @@ function SampleMats(x_mat, y_mat, prop = 0.9)
     return train_x, test_x, train_y, test_y
 end
 
-# Given a model, error (δ), testing set, and nonconformity
-# function, function produces a prediction region for each pre-sentence
-# in testing set. Number of words in each prediction region is a
-# reflection of confidence (1 - δ).
-# @param model - trained model used to predict  next words
-# @param δ - error, used to compute confidence (1 - δ)
-# @param dl_test - testing set (may be in the form of a dataloader)
-# @param nonconf - nonconformity function
-# @return collection - a set of prediction regions for the next word
-# of each pre-sentence
+"""
+    inductive_conformal(mod, δ, dl_calib, dl_test, unique_pos)
+
+Compute the conformal prediciton sets for the given trained model.
+
+Parameter mod (trained model) - Trained model for set prediction.
+Parameter δ (Int64) - epsilon value, used to compute confidence (1 - δ).
+Parameter dl_calib (Dataloader) - calibration dataloader.
+Parameter dl_test (Dataloader) - testing dataloader.
+Parameter unique_pos (Vector{Any}) - Unique parts of speech in corpus.
+
+Return perc (Float32) - proportion of the amount of predicitons the set got
+    right.
+Return eff (Vector{Int64}) - vector of the length value for each set.
+Return sets (Vector{Vector{String}}) - Vector of vector contataing the
+    prediction sets.
+"""
 function inductive_conformal(mod, δ, dl_calib, dl_test, unique_pos)
 
     confidence = 1 - δ
@@ -346,9 +349,20 @@ function inductive_conformal(mod, δ, dl_calib, dl_test, unique_pos)
     perc = convert(Float32, mean(correct))
     eff = convert(Vector{Int64}, eff)
 
-    return perc, eff, sets
+    return perc, correct, eff, sets
 end
 
+"""
+    tag_freq(tag)
+
+Testing method that counts how many times any given tag appears in the
+prediction sets.
+
+Parameter tag (String) - Tag that is counted
+
+Return counter (Int64) - The total amount of times the tag appears in the
+    prediction sets.
+"""
 function tag_freq(tag)
 
     counter = 0
@@ -360,4 +374,92 @@ function tag_freq(tag)
         end
     end
     return counter
+end
+
+"""
+    BLSTM(x)
+
+Bidirectional Long Short-Term Memory layer.
+
+Parameter x (Array{Float32, 2}) - X value from the training dataloader.
+
+Return res (Array{Float32, 2}) - Matrix of the forward LSTM predictions
+concatenated with backward LSTM predictions.
+"""
+function BLSTM(x)
+
+    #Flux.reset!((forward, backward))
+    fw = forward.([x[:, 1:15, i] for i in 1:size(x, 3)])
+    fw_mat = hcat.(f[:,15] for f in fw)
+
+    bw = backward.([x[:, end:-1:17, i] for i = size(x, 3):-1:1])
+    bw_mat = hcat.(b[:,15] for b in bw)
+
+    fw_temp = fw_mat[1]
+    for i in 2:length(fw_mat)
+        fw_temp = hcat(fw_temp, fw_mat[i])
+    end
+
+    bw_temp = bw_mat[1]
+    for i in 2:length(bw_mat)
+        bw_temp = hcat(bw_temp, bw_mat[i])
+    end
+    #@show fw_temp
+    res = vcat(fw_temp, bw_temp)
+    #@show res
+    return res
+end
+
+"""
+    loss(x, y)
+
+Loss function for model.
+
+Parameter x (Array{Float32, 2}) - X value from the training dataloader.
+Parameter y (Array{Float32, 2}) - Y value from the training dataloader.
+
+Return l (Float64) - Loss value.
+"""
+function loss(x, y)
+    Flux.reset!(forward)
+    Flux.reset!(backward)
+    l = Flux.crossentropy(model(x), y)
+    return l
+end
+
+"""
+    load_parameters!(weights)
+
+Loads trained weights from GPU.
+
+Parameter weights (Vector{Any}) - Vector of updated parameters for each layer
+    of the neural network.
+"""
+function load_parameters!(weights)
+    Flux.loadparams!(forward, weights[1])
+    Flux.loadparams!(backward, weights[2])
+    Flux.loadparams!(embedding, weights[3])
+    Flux.loadparams!(predictor, weights[4])
+end
+
+function toPval(scores,a_i)
+    a_i = sort(a_i)
+    L = length(a_i)
+    pvaltemp = []
+    for x in scores
+        push!(pvaltemp,1-((searchsortedfirst(a_i, 1 - x)/length(a_i))))
+    end
+    return pvaltemp
+end
+
+function greatorVec(vec)
+    return vec .> epsilon
+end
+
+function returnIndex(vec, ind)
+    return vec[ind]
+end
+
+function notVec(vec)
+    return abs.(1 .- vec)
 end
