@@ -405,10 +405,10 @@ a_i2 = []
         push!(a_i2,1-py"getCalibScore"(trainingbefore[i], trainingafter[i], actWord[i]))
     end
 
-ϵ = .1
-stri = "/MASK/ people commit the most crimes"
+ϵ = .25
+stri = "shall have a new birth of freedom -- and that government of the people, by the people, for the people, shall not perish from the /MASK/ ."
 splistri = split(stri, "/MASK")
-x = py"getPreds"(splistri[1], splistri[2], quantile(a_i2,1-ϵ), all)
+x = py"getPreds"(splistri[1], splistri[2], quantile(a_i2,1-ϵ), allwords)
 
 function vectorToString(vec)
     sent = ""
