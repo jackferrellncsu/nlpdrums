@@ -261,17 +261,19 @@ MM = py"getVocabOrder"(unique_words)
 vocabOrder = MM[1,:]
 indicies = MM[2,:]
 ϵ1 = 0
-    ϵ2 = .3
-    Q1 = quantile(a_i1, 1 - ϵ1)
-    Q2 = quantile(a_i2, 1 - ϵ2)
+    global epsilon = .05
     counter = 1
     pvals = []
     for x in ProgressBar(testS)
         for y in ProgressBar(x)
             before,after = split(vectorToString(y), "/MASK/")
-            scores = py"getPredsVector"(before , after , unique_words)[indicies]
+            scores = py"getPredsVector"(before , after , vocabOrder)[indicies]
             pval = toPval(scores, a_i2)
             push!(pvals,pval)
+            sizes = sum.(greatorVec.(pvals))
+            ncrit = mean(sizes)
+            print(actWordTest)
+            print( "          ", ncrit)
         end
     end
 
@@ -361,7 +363,7 @@ py"""
     def getVocabOrder(vocab):
         Words = []
         inds = []
-        for i in range(scores.size):
+        for i in range(40000):
             if tokenizer.decode([i]) in vocab:
                 Words.append(tokenizer.decode([i]))
                 inds.append(i)
@@ -383,7 +385,7 @@ py"""
     """
 
 x = py"getPreds"("hello , my ", " is", .95)
-y = py"getCalibScore"("hello , my ", " is", "name")
+y = 1-  py"getCalibScore"("hello , my ", " is", "name")
 
 training = reduce(vcat, trainS)
 trainingbefore = []
@@ -404,8 +406,9 @@ a_i2 = []
     end
 
 ϵ = .1
-quantile(a_i,1-ϵ)
-x = py"getPreds"("of all ", " , labradors are the best", quantile(a_i,1-ϵ), unique_words)
+stri = "/MASK/ people commit the most crimes"
+splistri = split(stri, "/MASK")
+x = py"getPreds"(splistri[1], splistri[2], quantile(a_i2,1-ϵ), all)
 
 function vectorToString(vec)
     sent = ""
@@ -446,7 +449,7 @@ end
 S = vecvec_to_matrix(bertPOSVecs)
 P = vecvec_to_matrix(bertTAGSVecs)
 
-ind = sample(1:size(S)[1], 45872, replace = false)
+ind = sample(1:size(S)[1], 46445, replace = false)
 DL = Flux.Data.DataLoader(((S[ind,:])',(P[ind,:])'), batchsize = 10000, shuffle = true)
 
 BSON.@load "/Users/mlovig/Documents/GitHub/nlpdrums/src/Maxwell/BertUnmaskedPOS.bson" regnet
@@ -498,17 +501,36 @@ Random.seed!(500)
         push!(pvals,pval)
     end
 
+histogram(bins = 20, a_i3, leg = false, color = :red, linecolor = :white, grid = false)
+xaxis!((0,1))
 
 correct = sum(argmax.(actWords) .== argmax.(pvals)) /length(pvals)
-credibility = mean(maximum.(pvals))
+pvalscopy = deepcopy(pvals)
+credibility = mean(getindex.(reverse.(sort.(pvalscopy)),1))
 OP = mean(dot.(pvals,actWords))
 OF = mean(dot.(pvals, notVec.(actWords)) / length(pvals[1]))
 
 global epsilon = .01
+push!(epsilonss, 1-epsilon)
 sizes = sum.(greatorVec.(pvals))
 ncrit = mean(sizes)
-empconf = mean(returnIndex.(pvals, argmax.(actWords)) .> epsilon)
-histogram(sizes)
+empconf = mean(returnIndex.(pvals, argmax.(actWords)) .> epsilon
+sum(sizes .> 2) / length(sizes)
+denom = 0
+numer = 0
+for i in 1:length(pvals)
+    if sizes[i] == 1
+        denom += 1
+        if argmax(pvals[i]) == argmax(actWords[i])
+            numer += 1
+        end
+    end
+end
+
+plot(epsilonss,confidences, label = "Empirical Confidence")
+plot!(epsilonss,epsilonss, label = "Proposed Confidence", legend=:topleft)
+
+histogram(sizes,bins = 1:100,leg = false, color = :red, linecolor = :white)
 
 function greatorVec(vec)
     return vec .> epsilon
@@ -521,6 +543,7 @@ end
 function notVec(vec)
     return abs.(1 .- vec)
 end
+
 function toPval(scores,a_i)
     a_i = sort(a_i)
     L = length(a_i)
