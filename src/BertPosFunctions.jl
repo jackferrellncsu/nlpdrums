@@ -235,3 +235,42 @@ function TrainCalibTest(V, p ,q)
 
     return [trainV, calibV, testV]
 end
+
+function SplitVector(V, p)
+    trainingInd = sample(1:size(V)[1],Int(floor(p * size(V)[1])),replace = false)
+    extraInd = filter(x->x∉trainingInd, 1:size(V)[1])
+    trainV = V[trainingInd]
+    extraV = V[extraInd]
+
+    return [trainV, extraV]
+end
+
+
+function toBertNoMask(sentence,bert_model, wordpiece, tokenizer, vocab, splitind)
+    text1 = ""
+    text2 = ""
+    for ii in 1:length(sentence)
+        if ii < splitind
+        text1 = text1 * " " * sentence[ii]
+        end
+        if ii > splitind
+        text2 = text2 * " " * sentence[ii]
+        end
+    end
+
+    text1 = text1 |> tokenizer |> wordpiece
+    text2 = text2 |> tokenizer |> wordpiece
+
+
+    text = ["[CLS]"; text1; sentence[splitind]; text2; "[SEP]"]
+
+    ind = length(text1) + 2
+    token_indices = vocab(text)
+    segment_indices = [fill(1, length(text1)+length(text2) + 3);]
+
+    sample = (tok = token_indices, segment = segment_indices)
+
+    bert_embedding = sample |> bert_model.embed
+    feature_tensors = bert_embedding |> bert_model.transformers
+    return feature_tensors[:,ind]
+end
