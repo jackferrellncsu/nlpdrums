@@ -8,7 +8,7 @@ src/JonsData 2.csv
 Plots/AvgGloVeDist_Poop.png
 src/Jack/Data/
 src/Jack/GPU running/brown.csv
-
 brown.csv
 src/Jack/GPU running/results.463755
 .venv
+!requirements.txt
