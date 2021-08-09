@@ -11,6 +11,8 @@ Standardized process for generating reproducible code as described by Dr. Willia
 
 4. Put instructions for running code into workflow.sh so it can in theory all be executed at once
 
+Julia boys: Make sure your julia environment is initalized at some point before running all scripts.
+
 
 
 
