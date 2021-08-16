@@ -11,3 +11,13 @@ python src/Code_Snapshot/RunFile_mlm_datapr.py -s $SEED
 #Warning- Takes a very long time
 python src/Code_Snapshot/RunFile_mlm_bert.py -s $SEED
 
+####################
+# The following line produces the trained BiLSTM model
+# Warning - Can take a long time (20-30 hours)
+
+julia --project=. src/Code_Snapshot/run_blstm.jl
+
+# The following line produces the "BiLSTM" portions of Tables 1 & 2, as well as
+# Figures 9, 10 and 11
+
+julia --project=. src/Code_Snapshot/out_blstm.jl
