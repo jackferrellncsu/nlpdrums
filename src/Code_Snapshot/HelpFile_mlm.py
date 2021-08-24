@@ -7,14 +7,28 @@ import sys, getopt
 import pickle
 
 #--------------------------Data Prep Helpers--------------------------------------------------#
+#Removes unecessary tags, i.e. -tl, fw-, etc.
+def fix_pos(tag):
+    if not tag: 
+        return None
+    s = tag.split("-")
+    if s[0] == 'fw':
+        return s[1]
+    else:
+        return s[0]
+
 #load in sentences df
 #Not put back together yet, in (pre-bert) token form
 def load_sentencesdf():
     raw_data = pd.read_csv("Data/brown.csv")
     sentences = raw_data["raw_text"].str.split(expand=True)
+
+    pos = sentences.apply(lambda x: x.str.rsplit("/").str[1])
+    pos = pos.applymap(lambda x: fix_pos(x))
+
     sentences = sentences.apply(lambda x: x.str.rsplit("/").str[0])
     sentences.insert(180, "mask_ind", None)
-    return sentences
+    return sentences, pos
 
 #Get index we will later mask, only called in 
 def get_mask_helper(row):
